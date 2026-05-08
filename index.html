@@ -1,491 +1,327 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Court Statement Automation</title>
 
-  <title>Court Statement Automation</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
-  <!-- Tailwind -->
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- React -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-
-  <!-- Babel -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <!-- XLSX -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
-  <!-- File Saver -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-
-  <style>
-    body{
-      margin:0;
-      padding:20px;
-      background:#f3f4f6;
-      font-family:Arial, Helvetica, sans-serif;
-    }
-
-    table{
-      border-collapse: collapse;
-      width:100%;
-    }
-
-    th,td{
-      border:1px solid #d1d5db;
-      padding:8px;
-      text-align:center;
-    }
-
-    th{
-      background:#e5e7eb;
-    }
-
-    input,select{
-      width:100%;
-      padding:10px;
-      border:1px solid #d1d5db;
-      border-radius:6px;
-    }
-
-    button{
-      padding:10px 20px;
-      border:none;
-      border-radius:6px;
-      cursor:pointer;
-      color:white;
-      font-weight:bold;
-    }
-
-    .blue{
-      background:#2563eb;
-    }
-
-    .green{
-      background:#16a34a;
-    }
-
-    .card{
-      background:white;
-      padding:20px;
-      border-radius:10px;
-      margin-bottom:20px;
-      box-shadow:0 2px 5px rgba(0,0,0,0.1);
-    }
-
-    .grid{
-      display:grid;
-      grid-template-columns:repeat(3,1fr);
-      gap:10px;
-    }
-  </style>
+<style>
+body{
+  background:#edf2f7;
+  font-family:Arial;
+}
+.table-input{
+  width:100%;
+  border:1px solid #cbd5e0;
+  padding:4px;
+  text-align:center;
+}
+.sheet-card{
+  background:white;
+  border-radius:10px;
+  padding:15px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.1);
+}
+</style>
 </head>
-
 <body>
 
 <div id="root"></div>
 
 <script type="text/babel">
 
-const CASE_TYPES = [
-  {
-    type: "W/S State",
-    categories: [
-      "Arms Act",
-      "Excise Act",
-      "MP/MLA",
-      "NDPS",
-      "Commital",
-      "Sexual Harassment",
-      "3/7 EC",
-      "Other"
-    ]
-  },
-
-  {
-    type: "Summons State",
-    categories: [
-      "7/16 OF",
-      "FSS",
-      "Other"
-    ]
-  },
-
-  {
-    type: "Summons Complaint",
-    categories: [
-      "NI Act",
-      "Other Complaint"
-    ]
-  },
-
-  {
-    type: "Petty",
-    categories: [
-      "MV Act",
-      "Other Challan",
-      "W/M Challan"
-    ]
-  },
-
-  {
-    type: "FR",
-    categories: [
-      "FR"
-    ]
-  },
-
-  {
-    type: "CMC",
-    categories: [
-      "173 BNSS",
-      "Other Misc",
-      "Bail"
-    ]
-  }
+const YEARS = [
+  1993,1994,1995,1996,1997,1998,1999,
+  2000,2001,2002,2003,2004,2005,2006,
+  2007,2008,2009,2010,2011,2012,2013,
+  2014,2015,2016,2017,2018,2019,2020,
+  2021,2022,2023,2024,2025,2026
 ];
 
-function calculatePendency(
-  opening,
-  institution,
-  transferIn,
-  disposal,
-  transferOut
-){
-  return (
-    Number(opening) +
-    Number(institution) +
-    Number(transferIn) -
-    Number(disposal) -
-    Number(transferOut)
-  );
-}
+const CASE_STRUCTURE = {
 
-function getActualDisposal(
-  contested,
-  nonContested,
-  direct,
-  committal,
-  transfer
-){
-  return (
-    Number(contested) +
-    Number(nonContested) +
-    Number(direct) +
-    Number(committal) +
-    Number(transfer)
-  );
-}
+  warrant:[
+    "Arms Act",
+    "Excise Act",
+    "MP/MLA",
+    "NDPS",
+    "Commital",
+    "Sexual Harassment",
+    "3/7 EC",
+    "Other"
+  ],
+
+  summonsState:[
+    "7/16 OF",
+    "FSS",
+    "Other"
+  ],
+
+  summonsComplaint:[
+    "NI Act",
+    "Other Complaint"
+  ],
+
+  petty:[
+    "MV Act",
+    "Other Challan",
+    "W/M Challan"
+  ],
+
+  misc:[
+    "173 BNSS",
+    "Other Misc",
+    "Bail"
+  ],
+
+  fr:["FR"]
+
+};
 
 function App(){
 
-  const [month,setMonth] = React.useState("April-2026");
+const [month,setMonth] = React.useState("APRIL 2026");
 
-  const [entries,setEntries] = React.useState([]);
+const [masterData,setMasterData] = React.useState([]);
 
-  const [form,setForm] = React.useState({
-    type:"",
-    category:"",
-    year:"",
-    opening:0,
-    institution:0,
-    disposal:0,
-    transferIn:0,
-    transferOut:0,
-    contested:0,
-    nonContested:0,
-    direct:0,
-    committal:0,
-    transfer:0
-  });
+const [entry,setEntry] = React.useState({
+  type:"",
+  category:"",
+  year:"2026",
+  opening:0,
+  institution:0,
+  disposal:0,
+  transferIn:0,
+  transferOut:0,
+  contested:0,
+  nonContested:0,
+  direct:0,
+  committal:0,
+  actualDisposal:0,
+  fiveYearOld:0,
+  pendingFiveYear:0,
+  amount:0
+});
 
-  React.useEffect(() => {
-    const data = localStorage.getItem(month);
+const addEntry = () => {
 
-    if(data){
-      setEntries(JSON.parse(data));
-    }else{
-      setEntries([]);
-    }
-  },[month]);
+  const finalPending =
+    Number(entry.opening)
+    + Number(entry.institution)
+    + Number(entry.transferIn)
+    - Number(entry.disposal)
+    - Number(entry.transferOut);
 
-  const addEntry = () => {
+  const actualDisposal =
+    Number(entry.contested)
+    + Number(entry.nonContested)
+    + Number(entry.direct)
+    + Number(entry.committal);
 
-    const pending = calculatePendency(
-      form.opening,
-      form.institution,
-      form.transferIn,
-      form.disposal,
-      form.transferOut
-    );
-
-    const actualDisposal = getActualDisposal(
-      form.contested,
-      form.nonContested,
-      form.direct,
-      form.committal,
-      form.transfer
-    );
-
-    const newEntry = {
-      ...form,
-      pending,
-      actualDisposal
-    };
-
-    const updated = [...entries,newEntry];
-
-    setEntries(updated);
-
-    localStorage.setItem(
-      month,
-      JSON.stringify(updated)
-    );
-
-    alert("Entry Added");
+  const newRow = {
+    ...entry,
+    finalPending,
+    actualDisposal
   };
 
-  const exportExcel = () => {
+  setMasterData([...masterData,newRow]);
+};
 
-    const worksheet =
-      XLSX.utils.json_to_sheet(entries);
+const exportExcel = () => {
 
-    const workbook =
-      XLSX.utils.book_new();
+  const wb = XLSX.utils.book_new();
 
-    XLSX.utils.book_append_sheet(
-      workbook,
-      worksheet,
-      "Monthly Statement"
-    );
+  // MASTER
+  const masterSheet = XLSX.utils.json_to_sheet(masterData);
+  XLSX.utils.book_append_sheet(wb,masterSheet,"MASTER DATA");
 
-    const excelBuffer = XLSX.write(
-      workbook,
-      {
-        bookType:"xlsx",
-        type:"array"
-      }
-    );
+  // PENDENCY
+  const pendency = masterData.map(x=>({
+    TYPE:x.type,
+    CATEGORY:x.category,
+    YEAR:x.year,
+    OPENING:x.opening,
+    INSTITUTION:x.institution,
+    DISPOSAL:x.disposal,
+    FINAL:x.finalPending
+  }));
 
-    const blob = new Blob(
-      [excelBuffer],
-      {
-        type:"application/octet-stream"
-      }
-    );
+  const pendencySheet = XLSX.utils.json_to_sheet(pendency);
+  XLSX.utils.book_append_sheet(wb,pendencySheet,"pendency arrears");
 
-    saveAs(blob, `${month}.xlsx`);
-  };
+  // BREAKUP
+  const breakup = masterData.map(x=>({
+    CATEGORY:x.category,
+    YEAR:x.year,
+    PENDING:x.finalPending
+  }));
 
-  return (
+  const breakupSheet = XLSX.utils.json_to_sheet(breakup);
+  XLSX.utils.book_append_sheet(wb,breakupSheet,"breakup");
 
-    <div>
+  // CONTESTED
+  const contested = masterData.map(x=>({
+    YEAR:x.year,
+    CONTESTED:x.contested,
+    NON_CONTESTED:x.nonContested,
+    DIRECT:x.direct,
+    COMMITTAL:x.committal,
+    ACTUAL:x.actualDisposal
+  }));
 
-      <h1 className="text-4xl font-bold mb-5">
-        Court Statement Automation
-      </h1>
+  const contestedSheet = XLSX.utils.json_to_sheet(contested);
+  XLSX.utils.book_append_sheet(wb,contestedSheet,"ACTUAL DISPO");
 
-      <div className="card">
+  XLSX.writeFile(wb,`${month}.xlsx`);
+};
 
-        <div className="grid">
+return(
+<div className="p-4">
 
-          <input
-            placeholder="Month"
-            value={month}
-            onChange={(e)=>
-              setMonth(e.target.value)
-            }
-          />
+<h1 className="text-3xl font-bold mb-4">
+Court Statement Automation System
+</h1>
 
-          <select
-            value={form.type}
-            onChange={(e)=>
-              setForm({
-                ...form,
-                type:e.target.value
-              })
-            }
-          >
+<div className="sheet-card mb-4">
 
-            <option value="">
-              Select Type
-            </option>
+<div className="grid grid-cols-4 gap-3">
 
-            {
-              CASE_TYPES.map((item,index)=>(
-                <option
-                  key={index}
-                  value={item.type}
-                >
-                  {item.type}
-                </option>
-              ))
-            }
+<input
+className="border p-2 rounded"
+placeholder="Month"
+value={month}
+onChange={(e)=>setMonth(e.target.value)}
+/>
 
-          </select>
+<select
+className="border p-2 rounded"
+value={entry.type}
+onChange={(e)=>setEntry({...entry,type:e.target.value})}
+>
+<option value="">Select Type</option>
+<option value="Warrant">Warrant</option>
+<option value="Summons State">Summons State</option>
+<option value="Summons Complaint">Summons Complaint</option>
+<option value="Petty">Petty</option>
+<option value="FR">FR</option>
+<option value="CMC">CMC</option>
+</select>
 
-          <input
-            placeholder="Category"
-            value={form.category}
-            onChange={(e)=>
-              setForm({
-                ...form,
-                category:e.target.value
-              })
-            }
-          />
+<input
+className="border p-2 rounded"
+placeholder="Category"
+value={entry.category}
+onChange={(e)=>setEntry({...entry,category:e.target.value})}
+/>
 
-          <input
-            placeholder="Year"
-            value={form.year}
-            onChange={(e)=>
-              setForm({
-                ...form,
-                year:e.target.value
-              })
-            }
-          />
+<select
+className="border p-2 rounded"
+value={entry.year}
+onChange={(e)=>setEntry({...entry,year:e.target.value})}
+>
+{
+YEARS.map(y=><option key={y}>{y}</option>)
+}
+</select>
 
-          <input
-            type="number"
-            placeholder="Opening"
-            value={form.opening}
-            onChange={(e)=>
-              setForm({
-                ...form,
-                opening:e.target.value
-              })
-            }
-          />
+<input className="border p-2 rounded" type="number" placeholder="Opening" onChange={(e)=>setEntry({...entry,opening:e.target.value})} />
+<input className="border p-2 rounded" type="number" placeholder="Institution" onChange={(e)=>setEntry({...entry,institution:e.target.value})} />
+<input className="border p-2 rounded" type="number" placeholder="Transfer In" onChange={(e)=>setEntry({...entry,transferIn:e.target.value})} />
+<input className="border p-2 rounded" type="number" placeholder="Disposal" onChange={(e)=>setEntry({...entry,disposal:e.target.value})} />
 
-          <input
-            type="number"
-            placeholder="Institution"
-            value={form.institution}
-            onChange={(e)=>
-              setForm({
-                ...form,
-                institution:e.target.value
-              })
-            }
-          />
+<input className="border p-2 rounded" type="number" placeholder="Transfer Out" onChange={(e)=>setEntry({...entry,transferOut:e.target.value})} />
+<input className="border p-2 rounded" type="number" placeholder="Contested" onChange={(e)=>setEntry({...entry,contested:e.target.value})} />
+<input className="border p-2 rounded" type="number" placeholder="Non Contested" onChange={(e)=>setEntry({...entry,nonContested:e.target.value})} />
+<input className="border p-2 rounded" type="number" placeholder="Direct" onChange={(e)=>setEntry({...entry,direct:e.target.value})} />
 
-          <input
-            type="number"
-            placeholder="Disposal"
-            value={form.disposal}
-            onChange={(e)=>
-              setForm({
-                ...form,
-                disposal:e.target.value
-              })
-            }
-          />
+<input className="border p-2 rounded" type="number" placeholder="Committal" onChange={(e)=>setEntry({...entry,committal:e.target.value})} />
+<input className="border p-2 rounded" type="number" placeholder="5 Year Disposal" onChange={(e)=>setEntry({...entry,fiveYearOld:e.target.value})} />
+<input className="border p-2 rounded" type="number" placeholder="5 Year Pending" onChange={(e)=>setEntry({...entry,pendingFiveYear:e.target.value})} />
+<input className="border p-2 rounded" type="number" placeholder="Amount" onChange={(e)=>setEntry({...entry,amount:e.target.value})} />
 
-          <input
-            type="number"
-            placeholder="Transfer In"
-            value={form.transferIn}
-            onChange={(e)=>
-              setForm({
-                ...form,
-                transferIn:e.target.value
-              })
-            }
-          />
+</div>
 
-          <input
-            type="number"
-            placeholder="Transfer Out"
-            value={form.transferOut}
-            onChange={(e)=>
-              setForm({
-                ...form,
-                transferOut:e.target.value
-              })
-            }
-          />
+<div className="mt-4 flex gap-3">
+<button
+className="bg-blue-600 text-white px-5 py-2 rounded"
+onClick={addEntry}
+>
+ADD ENTRY
+</button>
 
-        </div>
+<button
+className="bg-green-600 text-white px-5 py-2 rounded"
+onClick={exportExcel}
+>
+EXPORT XLSX
+</button>
+</div>
 
-        <div className="mt-5 flex gap-3">
+</div>
 
-          <button
-            className="blue"
-            onClick={addEntry}
-          >
-            Add Entry
-          </button>
+<div className="sheet-card overflow-auto">
 
-          <button
-            className="green"
-            onClick={exportExcel}
-          >
-            Download Excel
-          </button>
+<h2 className="text-xl font-bold mb-3">
+MASTER ENTRY TABLE
+</h2>
 
-        </div>
+<table className="w-full border text-sm">
+<thead className="bg-gray-200">
+<tr>
+<th className="border p-2">TYPE</th>
+<th className="border p-2">CATEGORY</th>
+<th className="border p-2">YEAR</th>
+<th className="border p-2">OPENING</th>
+<th className="border p-2">INST</th>
+<th className="border p-2">TF IN</th>
+<th className="border p-2">DISP</th>
+<th className="border p-2">TF OUT</th>
+<th className="border p-2">FINAL</th>
+<th className="border p-2">CONTESTED</th>
+<th className="border p-2">NON</th>
+<th className="border p-2">DIRECT</th>
+<th className="border p-2">COMMITTAL</th>
+<th className="border p-2">ACTUAL DISP</th>
+</tr>
+</thead>
+<tbody>
+{
+masterData.map((x,i)=>(
+<tr key={i}>
+<td className="border p-1">{x.type}</td>
+<td className="border p-1">{x.category}</td>
+<td className="border p-1">{x.year}</td>
+<td className="border p-1">{x.opening}</td>
+<td className="border p-1">{x.institution}</td>
+<td className="border p-1">{x.transferIn}</td>
+<td className="border p-1">{x.disposal}</td>
+<td className="border p-1">{x.transferOut}</td>
+<td className="border p-1">{x.finalPending}</td>
+<td className="border p-1">{x.contested}</td>
+<td className="border p-1">{x.nonContested}</td>
+<td className="border p-1">{x.direct}</td>
+<td className="border p-1">{x.committal}</td>
+<td className="border p-1">{x.actualDisposal}</td>
+</tr>
+))
+}
+</tbody>
+</table>
 
-      </div>
+</div>
 
-      <div className="card">
-
-        <table>
-
-          <thead>
-
-            <tr>
-
-              <th>Type</th>
-              <th>Category</th>
-              <th>Year</th>
-              <th>Institution</th>
-              <th>Disposal</th>
-              <th>Pending</th>
-              <th>Actual Disposal</th>
-
-            </tr>
-
-          </thead>
-
-          <tbody>
-
-            {
-              entries.map((item,index)=>(
-
-                <tr key={index}>
-
-                  <td>{item.type}</td>
-                  <td>{item.category}</td>
-                  <td>{item.year}</td>
-                  <td>{item.institution}</td>
-                  <td>{item.disposal}</td>
-                  <td>{item.pending}</td>
-                  <td>{item.actualDisposal}</td>
-
-                </tr>
-
-              ))
-            }
-
-          </tbody>
-
-        </table>
-
-      </div>
-
-    </div>
-
-  );
+</div>
+);
 }
 
-ReactDOM.createRoot(
-  document.getElementById("root")
-).render(<App />);
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 
 </script>
 
