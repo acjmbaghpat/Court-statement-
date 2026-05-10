@@ -1,0 +1,2017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Court Statement Manager — ACJM Baghpat</title>
+<!-- Version: 2025-05-10 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#f5f7fa;--panel:#ffffff;--card:#eef2f7;--border:#d0daea;
+  --accent:#1a5fa8;--accent2:#0d4a8a;--text:#1a2a3a;--dim:#6a8aaa;
+  --green:#1a7a3a;--red:#cc2222;--gold:#8a6000;--hdr:#1a3a6a;
+  --blue-pale:#e8f0fa;--green-pale:#e8f8ee;--red-pale:#fde8e8;
+  --row-alt:#f8fafd;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Courier New',monospace;background:var(--bg);color:var(--text);font-size:12px}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none}
+input[type=number]{-moz-appearance:textfield}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:#e8eef5}
+::-webkit-scrollbar-thumb{background:#a0bad4;border-radius:3px}
+select,select option{font-family:'Courier New',monospace}
+button{font-family:'Courier New',monospace;cursor:pointer}
+
+/* Header */
+.app-hdr{background:var(--accent2);color:#fff;padding:8px 14px;border-bottom:3px solid var(--accent)}
+.app-title{font-size:15px;font-weight:bold;letter-spacing:.5px}
+.app-sub{font-size:9px;opacity:.7;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:2px}
+.tab-btn{padding:6px 14px;border-radius:3px 3px 0 0;border:none;font-size:11px;font-weight:bold;cursor:pointer;transition:background .15s}
+.tab-btn.act{background:#fff;color:var(--accent2)}
+.tab-btn.inact{background:rgba(255,255,255,.15);color:#fff}
+
+/* Inputs */
+.inp{background:#fff;color:var(--text);border:1px solid var(--border);border-radius:3px;
+  padding:3px 6px;font-family:'Courier New',monospace;outline:none;font-size:11px}
+.inp:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(26,95,168,.15)}
+.vi{width:54px;background:#fff;color:var(--text);border:1px solid var(--border);border-radius:2px;
+  padding:2px 3px;font-size:10px;text-align:right;font-family:'Courier New',monospace;outline:none}
+.vi:focus{border-color:var(--accent);background:var(--blue-pale)}
+.vi.ob{border-color:#2a5a9c}
+.vi.id,.vi.it{border-color:var(--green)}
+.vi.dc,.vi.dn,.vi.dm,.vi.dt{border-color:var(--red)}
+
+/* Tick cells */
+.tick{cursor:pointer;text-align:center;padding:3px 2px;user-select:none;
+  border-right:1px solid var(--border);border-bottom:1px solid var(--border);transition:background .1s}
+.tick.sel{background:#d4edda;color:var(--green);font-weight:bold;font-size:14px}
+.tick.unsel{background:#f8f8f8;color:#ccc;font-size:12px}
+.tick:hover{background:#e8f8ee}
+
+/* Sidebar */
+.sidebar{width:136px;min-width:136px;overflow-y:auto;border-right:2px solid var(--border);background:#f0f4fa}
+.grp-btn{width:100%;text-align:left;border:none;border-bottom:1px solid var(--border);
+  padding:7px 10px;font-family:'Courier New',monospace;font-size:10px;cursor:pointer;transition:background .1s}
+.grp-btn.act{border-left:3px solid var(--accent);background:var(--blue-pale);font-weight:bold;color:var(--hdr)}
+.grp-btn.inact{border-left:3px solid transparent;background:transparent;color:var(--dim)}
+.grp-btn:hover{background:var(--blue-pale)}
+
+/* Tables */
+.tbl{width:100%;border-collapse:collapse;font-size:11px}
+.tbl th{padding:5px 7px;background:var(--blue-pale);color:var(--hdr);font-weight:bold;
+  border-bottom:2px solid var(--border);text-align:center;white-space:nowrap;font-size:10px}
+.tbl th:first-child{text-align:left}
+.tbl td{padding:5px 7px;border-bottom:1px solid var(--border);color:var(--text)}
+.tbl td:not(:first-child){text-align:center}
+.tbl tr:nth-child(even){background:var(--row-alt)}
+.tbl tr.tot{background:var(--blue-pale);font-weight:bold}
+.tbl tr.tot td{color:var(--hdr)}
+.tbl tr.grn td{color:var(--green)}
+
+/* Stmt tabs */
+.stmt-tabs{padding:6px 12px;border-bottom:2px solid var(--border);background:#f0f4fa}
+.freq-lbl{font-size:9px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px}
+.stab{padding:4px 9px;border-radius:3px;font-size:10px;border:1px solid var(--border);
+  cursor:pointer;margin:2px;transition:all .15s;background:#fff;color:var(--hdr);font-family:'Courier New',monospace}
+.stab:hover{border-color:var(--accent);color:var(--accent)}
+.stab.act{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:bold}
+.stab.nodata{color:var(--red);border-color:#e8aaaa}
+
+/* Stmt header */
+.shdr{background:var(--blue-pale);border-left:4px solid var(--accent);
+  padding:8px 12px;margin-bottom:8px;border-radius:0 4px 4px 0}
+.shdr-title{font-size:12px;font-weight:bold;color:var(--hdr)}
+.shdr-sub{font-size:10px;color:var(--dim);margin-top:2px}
+
+/* Section headers inside statements */
+.sec-hdr{background:var(--card);border-left:3px solid var(--accent);padding:5px 10px;
+  margin:10px 0 5px 0;font-size:10px;font-weight:bold;color:var(--hdr);border-radius:0 3px 3px 0}
+
+/* Cards */
+.card{background:#fff;border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:10px}
+.card-title{font-size:10px;font-weight:bold;color:var(--hdr);margin-bottom:8px;letter-spacing:.5px}
+
+/* Buttons */
+.btn-pri{padding:5px 14px;background:var(--accent);color:#fff;border:none;border-radius:3px;font-weight:bold;font-size:11px;cursor:pointer}
+.btn-pri:hover{background:var(--accent2)}
+.btn-sec{padding:5px 12px;background:#fff;color:var(--dim);border:1px solid var(--border);border-radius:3px;font-size:11px;cursor:pointer}
+.btn-sec:hover{border-color:var(--accent);color:var(--accent)}
+.btn-grn{padding:5px 12px;background:var(--green-pale);color:var(--green);border:1px solid #90d0a0;border-radius:3px;font-size:11px;font-weight:bold;cursor:pointer}
+.btn-red{padding:5px 12px;background:var(--red-pale);color:var(--red);border:1px solid #e8aaaa;border-radius:3px;font-size:11px;cursor:pointer}
+
+/* Firebase badge */
+.fb-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-size:10px;font-weight:bold}
+.fb-ok{background:#e8f8ee;color:var(--green);border:1px solid #90d0a0}
+.fb-err{background:var(--red-pale);color:var(--red);border:1px solid #e8aaaa}
+.fb-syn{background:#fff8e0;color:var(--gold);border:1px solid #e0c070}
+.fb-off{background:var(--card);color:var(--dim);border:1px solid var(--border)}
+
+/* Modal overlay */
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1000;display:flex;align-items:center;justify-content:center}
+.modal-box{background:#fff;border-radius:8px;padding:24px;width:500px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+"use strict";
+var e=React.createElement, useState=React.useState, useEffect=React.useEffect;
+
+// ═══════════════════════════
+// CONSTANTS
+// ═══════════════════════════
+var MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+var YEARS=(function(){var a=[];for(var i=0;i<36;i++)a.push(1993+i);return a;})();
+
+var GROUPS=[
+  {id:"wss",lbl:"W/S State",col:"#1a5fa8",
+   types:[{id:"ipc",lbl:"IPC"},{id:"arms",lbl:"Arms Act"},{id:"ex",lbl:"Excise Act"},
+          {id:"mpmla",lbl:"MP/MLA"},{id:"ndps",lbl:"NDPS"},{id:"ec",lbl:"3/7 EC"},
+          {id:"coth",lbl:"Cmtl.Other"},{id:"crape",lbl:"Cmtl.Rape"},{id:"sh",lbl:"Sex.Har."},
+          {id:"wso",lbl:"Other"}]},
+  {id:"wsc",lbl:"W/S Complaint",col:"#3a5a9c",types:[{id:"wco",lbl:"W/S Compl"}]},
+  {id:"sms",lbl:"Summons State",col:"#1a6a3a",
+   types:[{id:"s716",lbl:"7/16 OF"},{id:"fss",lbl:"FSS"},{id:"sso",lbl:"Other"}]},
+  {id:"smc",lbl:"Summons Compl",col:"#1a5a4a",types:[{id:"ni",lbl:"NI Act 138"},{id:"sco",lbl:"Oth.Compl"}]},
+  {id:"pet",lbl:"Petty/Challan",col:"#7a4a1a",
+   types:[{id:"mv",lbl:"MV Act"},{id:"och",lbl:"Oth.Challan"},{id:"wm",lbl:"W/M Challan"}]},
+  {id:"fr",lbl:"Final Report",col:"#8a1a1a",types:[{id:"fr",lbl:"FR"}]},
+  {id:"cmc",lbl:"Criminal Misc",col:"#5a1a8a",
+   types:[{id:"cmc",lbl:"CMC"},{id:"b173",lbl:"173 BNSS"},{id:"bail",lbl:"Bail"}]},
+];
+
+var ALL_PAIRS=[];
+GROUPS.forEach(function(g){g.types.forEach(function(t){ALL_PAIRS.push([g.id,t.id]);});});
+var P_FR=[["fr","fr"]];
+var P_PETTY=[["pet","mv"],["pet","och"],["pet","wm"]];
+var P_MISC=[["cmc","cmc"],["cmc","b173"],["cmc","bail"]];
+var P_TRIAL=ALL_PAIRS.filter(function(p){return p[0]!=="cmc";});
+var P_NONFR=ALL_PAIRS.filter(function(p){return !(p[0]==="fr"&&p[1]==="fr");});
+
+var BU_ROWS=[
+  {lbl:"1. Criminal Warrant Trial Cases (W/S State & Complaint)",
+   pairs:ALL_PAIRS.filter(function(p){return p[0]==="wss"||p[0]==="wsc";})},
+  {lbl:"2. Criminal Summon Trial Cases (State & Complaint)",
+   pairs:ALL_PAIRS.filter(function(p){return p[0]==="sms"||p[0]==="smc";})},
+  {lbl:"3. Criminal Summary Trial (W/M Challan)",pairs:[["pet","wm"]]},
+  {lbl:"4. Petty Offences (MV Act + Other Challan)",pairs:[["pet","mv"],["pet","och"]]},
+  {lbl:"5. Cases under DV Act 2005",pairs:[]},
+  {lbl:"6. Final Reports",pairs:[["fr","fr"]]},
+  {lbl:"7. Criminal Misc Cases (CMC excl.173 & Bail)",pairs:[["cmc","cmc"]]},
+  {lbl:"8. Applications u/s 173 BNSS",pairs:[["cmc","b173"]]},
+  {lbl:"9. Bail Applications",pairs:[["cmc","bail"]]},
+];
+
+var APAR_SLABS=[
+  {lbl:"5-10 years", yr:"2014-2019",yrs:YEARS.filter(function(y){return y>=2014&&y<=2019;})},
+  {lbl:"10-20 years",yr:"2005-2013",yrs:YEARS.filter(function(y){return y>=2005&&y<=2013;})},
+  {lbl:"20-30 years",yr:"1994-2004",yrs:YEARS.filter(function(y){return y>=1994&&y<=2004;})},
+];
+
+var STMTS=[
+  {id:"info",lbl:"Information",freq:"M"},
+  {id:"pendency",lbl:"Pendency/Arrears",freq:"M"},
+  {id:"breakup",lbl:"Breakup",freq:"M"},
+  {id:"contested",lbl:"Contested/NC",freq:"M"},
+  {id:"act_dispo",lbl:"Actual Disposal",freq:"M"},
+  {id:"apar",lbl:"Apar DJ",freq:"M"},
+  {id:"rape_mla",lbl:"Rape/MP-MLA",freq:"M"},
+  {id:"ndps",lbl:"NDPS",freq:"M"},
+  {id:"petty_ni",lbl:"Petty & NI",freq:"M"},
+  {id:"petty_acd",lbl:"Proforma A+C+Summons",freq:"M"},
+  {id:"s3",lbl:"S3 Special",freq:"M"},
+  {id:"ni_breakup",lbl:"NI Breakup",freq:"M"},
+  {id:"mthly1",lbl:"Monthly-1 (Proforma 1-4)",freq:"M"},
+  {id:"mthly2",lbl:"Monthly-2 (Age/Conv.)",freq:"M"},
+  {id:"mthly3",lbl:"Monthly-3 (Sessions)",freq:"M"},
+  {id:"yr7old",lbl:"7 Year Old Cases",freq:"M"},
+  {id:"crpc299",lbl:"299 CrPC",freq:"M"},
+  {id:"mission",lbl:"Mission Mode Bimonthly",freq:"M"},
+  {id:"quota",lbl:"Out-turn / Quota",freq:"M"},
+  {id:"qtr_sh",lbl:"Quarterly SH Cases",freq:"Q"},
+  {id:"qtr_inst",lbl:"Quarterly Inst/Dispo",freq:"Q"},
+  {id:"new_qtr",lbl:"Quarterly Statistical",freq:"Q"},
+  {id:"ni_qtr",lbl:"NI Quarterly",freq:"Q"},
+  {id:"half1",lbl:"Half Yearly Stmt 3",freq:"H"},
+  {id:"half2",lbl:"Half Yearly Stmt 7",freq:"H"},
+  {id:"yearly",lbl:"Yearly — Annexure IV",freq:"Y"},
+];
+
+var FREQ_GROUPS=[
+  {id:"M",lbl:"📅 Monthly",col:"#1a5fa8"},
+  {id:"Q",lbl:"📆 Quarterly",col:"#1a6a3a"},
+  {id:"H",lbl:"📋 Half Yearly",col:"#6a3a8a"},
+  {id:"Y",lbl:"📊 Yearly",col:"#7a4a1a"},
+];
+
+// ═══════════════════════════
+// STORAGE & DATA HELPERS
+// ═══════════════════════════
+var SKEY="csm_v9";
+var N=function(v){return Number(v)||0;};
+var getMK=function(m,y){return y+"-"+("0"+(m+1)).slice(-2);};
+var ld=function(){try{return JSON.parse(localStorage.getItem(SKEY))||{};}catch(x){return{};}};
+var sv_=function(d){try{localStorage.setItem(SKEY,JSON.stringify(d));}catch(x){}};
+var uid_=function(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);};
+var mth=function(m,y){return MONTHS[m]+" "+y;};
+var lastDay=function(m,y){return new Date(y,m+1,0).getDate();};
+var dStr=function(m,y){return ("0"+lastDay(m,y)).slice(-2)+"."+("0"+(m+1)).slice(-2)+"."+y;};
+
+// Entry operations — all pure (return new state)
+var getEnt=function(all,mk){return (all[mk]||{}).entries||[];};
+var getMan=function(all,mk,k,df){var v=((all[mk]||{}).manual||{})[k];return v!==undefined?v:(df||"0");};
+var ow_=function(){var r={};for(var i=0;i<arguments.length;i++){var o=arguments[i]||{};for(var k in o)if(Object.prototype.hasOwnProperty.call(o,k))r[k]=o[k];}return r;};
+var setEntFn=function(all,mk,en){
+  var md=ow_(all[mk]||{}); var ents=(md.entries||[]).slice();
+  var idx=-1; for(var i=0;i<ents.length;i++){if(ents[i].id===en.id){idx=i;break;}}
+  if(idx>=0)ents[idx]=ow_(en);else ents.push(ow_(en));
+  md.entries=ents; var nd=ow_(all); nd[mk]=md; return nd;
+};
+var delEntFn=function(all,mk,id){
+  var md=ow_(all[mk]||{}); md.entries=(md.entries||[]).filter(function(e_){return e_.id!==id;});
+  var nd=ow_(all); nd[mk]=md; return nd;
+};
+var setManFn=function(all,mk,k,v){
+  var md=ow_(all[mk]||{}); md.manual=ow_(md.manual||{}); md.manual[k]=v;
+  var nd=ow_(all); nd[mk]=md; return nd;
+};
+
+// Entry OB — auto-carry from prev month if not set
+var entOB=function(en,prevEnt){
+  if(en.ob!==""&&en.ob!==undefined) return N(en.ob);
+  var pm=prevEnt.filter(function(p){return p.gid===en.gid&&p.tid===en.tid&&p.yr===en.yr;});
+  if(!pm.length) return 0;
+  return pm.reduce(function(s,p){
+    return s+N(p.ob)+N(p.inst)+N(p.itrf)-N(p.dc)-N(p.dn)-N(p.dm)-N(p.dt);
+  },0);
+};
+var entCl=function(en,pe){return entOB(en,pe)+N(en.inst)+N(en.itrf)-N(en.dc)-N(en.dn)-N(en.dm)-N(en.dt);};
+
+// Aggregates — all pure
+var sumF_=function(ents,pe,pairs,fid,yrs){
+  if(!pairs||!pairs.length) return 0;
+  return ents.reduce(function(t,en){
+    if(!pairs.some(function(p){return p[0]===en.gid&&p[1]===en.tid;})) return t;
+    if(yrs&&yrs.indexOf(en.yr)<0) return t;
+    if(fid==="ob") return t+entOB(en,pe);
+    if(fid==="cl") return t+entCl(en,pe);
+    return t+N(en[fid]);
+  },0);
+};
+var sumFs_=function(ents,pe,pairs,fids,yrs){
+  if(!pairs||!pairs.length) return 0;
+  return fids.reduce(function(s,f){return s+sumF_(ents,pe,pairs,f,yrs);},0);
+};
+var Cl_=function(ents,pe,pairs,yrs){
+  if(!pairs||!pairs.length) return 0;
+  return sumF_(ents,pe,pairs,"ob",yrs)+sumF_(ents,pe,pairs,"inst",yrs)+sumF_(ents,pe,pairs,"itrf",yrs)
+        -sumFs_(ents,pe,pairs,["dc","dn","dm","dt"],yrs);
+};
+var ClY_=function(ents,pe,pairs,yr){
+  if(!pairs||!pairs.length) return 0;
+  return ents.reduce(function(t,en){
+    if(!pairs.some(function(p){return p[0]===en.gid&&p[1]===en.tid;})) return t;
+    if(en.yr!==yr) return t;
+    return t+entCl(en,pe);
+  },0);
+};
+
+// ═══════════════════════════
+// FIREBASE
+// ═══════════════════════════
+var FB_URL_KEY="csm_fb_url"; var FB_SEC_KEY="csm_fb_sec"; var FB_PATH="csm_acjm_v9";
+var fbUrl=function(){return localStorage.getItem(FB_URL_KEY)||"";};
+var fbSec=function(){return localStorage.getItem(FB_SEC_KEY)||"";};
+var fbOk=function(){return !!(fbUrl()&&fbSec());};
+var fbEndpt=function(){return fbUrl().replace(/\/+$/,"")+"/"+ FB_PATH+".json?auth="+fbSec();};
+var fbPush=function(data,cb){
+  if(!fbOk()){if(cb)cb("nc");return;}
+  fetch(fbEndpt(),{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)})
+    .then(function(r){if(cb)cb(r.ok?"ok":"err");}).catch(function(){if(cb)cb("err");});
+};
+var fbPull=function(){
+  if(!fbOk()) return Promise.resolve(null);
+  return fetch(fbEndpt()).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});
+};
+
+// ═══════════════════════════
+// APP
+// ═══════════════════════════
+function App(){
+  var today=new Date();
+  var _selM=useState(today.getMonth()); var selM=_selM[0]; var setSelM=_selM[1];
+  var _selY=useState(2026);             var selY=_selY[0]; var setSelY=_selY[1];
+  var _tab=useState("entry");           var tab=_tab[0];   var setTab=_tab[1];
+  var _grp=useState("wss");             var grpId=_grp[0]; var setGrpId=_grp[1];
+  var _sid=useState("info");            var sid=_sid[0];   var setSid=_sid[1];
+  var _all=useState(ld);                var all=_all[0];   var setAll=_all[1];
+  var _mod=useState(null);              var modal=_mod[0]; var setModal=_mod[1]; // null|"fb"|"io"
+  var _sync=useState("idle");           var syncSt=_sync[0]; var setSyncSt=_sync[1];
+  var _lt=useState("");                 var lastT=_lt[0];  var setLastT=_lt[1];
+
+  var mk=getMK(selM,selY);
+  var prevMk=selM===0?(selY-1)+"-12":selY+"-"+("0"+selM).slice(-2);
+  var ents=getEnt(all,mk);
+  var pents=getEnt(all,prevMk);
+  var ml=mth(selM,selY);
+  var hasData=ents.length>0;
+
+  function upd(nd){setAll(nd);sv_(nd);if(fbOk()){setSyncSt("syn");fbPush(nd,function(r){setSyncSt(r==="ok"?"ok":"err");if(r==="ok")setLastT(new Date().toLocaleTimeString());});}}
+
+  // Auto pull on load
+  var _init=useState(false); var init=_init[0]; var setInit=_init[1];
+  if(!init){setInit(true);if(fbOk()){setSyncSt("syn");fbPull().then(function(r){if(r){var m2=ow_(ld(),r);setAll(m2);sv_(m2);}setSyncSt(r?"ok":"err");if(r)setLastT(new Date().toLocaleTimeString());});}}
+
+  function doSync(){
+    if(!fbOk()){setModal("fb");return;}
+    setSyncSt("syn");
+    fbPull().then(function(r){
+      if(r){var m2=ow_(ld(),r);setAll(m2);sv_(m2);setSyncSt("ok");setLastT(new Date().toLocaleTimeString());}
+      else setSyncSt("err");
+    });
+  }
+
+  var syncCls={"idle":"fb-off","syn":"fb-syn","ok":"fb-ok","err":"fb-err"}[syncSt]||"fb-off";
+  var syncLbl={"idle":"⟳ Sync","syn":"⏳ Syncing…","ok":"✓ "+lastT,"err":"✗ Error"}[syncSt]||"⟳";
+
+  return e("div",{style:{minHeight:"100vh",background:"var(--bg)"}},
+    // Modal
+    modal==="fb"?e(FbModal,{onClose:function(){setModal(null);}}):null,
+    modal==="io"?e(IOModal,{all:all,setAll:function(d){setAll(d);sv_(d);},onClose:function(){setModal(null);}}):null,
+
+    // HEADER
+    e("div",{className:"app-hdr"},
+      e("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"8px"}},
+        e("div",null,
+          e("div",{className:"app-sub"},"⚖ ACJM Baghpat — Court No. 15"),
+          e("div",{className:"app-title"},"Court Statement Manager")
+        ),
+        e("div",{style:{display:"flex",gap:"6px",alignItems:"center",flexWrap:"wrap"}},
+          e("select",{value:selM,onChange:function(ev){setSelM(+ev.target.value);},
+            style:{padding:"4px 6px",borderRadius:"3px",border:"none",background:"rgba(255,255,255,.9)",fontSize:"11px"}},
+            MONTHS.map(function(m,i){return e("option",{key:i,value:i},m);})),
+          e("select",{value:selY,onChange:function(ev){setSelY(+ev.target.value);},
+            style:{padding:"4px 6px",borderRadius:"3px",border:"none",background:"rgba(255,255,255,.9)",fontSize:"11px"}},
+            [2024,2025,2026,2027,2028].map(function(y){return e("option",{key:y,value:y},y);})),
+          e("button",{className:"fb-badge "+syncCls,onClick:doSync,title:"Click to sync with Firebase"},
+            fbOk()?"🔥 "+syncLbl:"🔥 Firebase"),
+          e("button",{onClick:function(){setModal("fb");},className:"btn-sec",style:{padding:"4px 10px",fontSize:"10px"}},"⚙ FB Setup"),
+          e("button",{onClick:function(){setModal("io");},className:"btn-sec",style:{padding:"4px 10px",fontSize:"10px"}},"📁 Data"),
+          tab==="stmts"?e("button",{onClick:function(){doXLSX(all,mk,prevMk,selM,selY);},
+            className:"btn-pri",style:{padding:"4px 12px"}},"⬇ XLSX"):null
+        )
+      ),
+      e("div",{style:{display:"flex",gap:"4px",marginTop:"8px"}},
+        [{id:"entry",lbl:"📝 Data Entry"},{id:"stmts",lbl:"📊 Statements"}].map(function(t){
+          return e("button",{key:t.id,onClick:function(){setTab(t.id);},
+            className:"tab-btn "+(tab===t.id?"act":"inact")},t.lbl);
+        })
+      )
+    ),
+
+    // CONTENT
+    tab==="entry"
+      ?e(DataEntry,{all:all,mk:mk,prevMk:prevMk,upd:upd,grpId:grpId,setGrpId:setGrpId,ml:ml,ents:ents,pents:pents})
+      :e(StmtsPanel,{all:all,mk:mk,prevMk:prevMk,upd:upd,sid:sid,setSid:setSid,hasData:hasData,selM:selM,selY:selY,ml:ml,ents:ents,pents:pents})
+  );
+}
+
+// ═══════════════════════════
+// FIREBASE MODAL
+// ═══════════════════════════
+function FbModal(p){
+  var _u=useState(fbUrl()); var u=_u[0]; var setU=_u[1];
+  var _s=useState(fbSec()); var s=_s[0]; var setS=_s[1];
+  var _m=useState(""); var msg=_m[0]; var setMsg=_m[1];
+  function save(){
+    localStorage.setItem(FB_URL_KEY,u.trim()); localStorage.setItem(FB_SEC_KEY,s.trim());
+    setMsg("Testing…");
+    fbPull().then(function(r){setMsg(r!==undefined?"✓ Connected! Data available.":"✗ Failed. Check URL and Secret.");});
+  }
+  function clear(){localStorage.removeItem(FB_URL_KEY);localStorage.removeItem(FB_SEC_KEY);setU("");setS("");setMsg("Cleared.");}
+  return e("div",{className:"modal-ov",onClick:function(ev){if(ev.target===ev.currentTarget)p.onClose();}},
+    e("div",{className:"modal-box"},
+      e("div",{style:{fontSize:"14px",fontWeight:"bold",color:"var(--hdr)",marginBottom:"4px"}},"🔥 Firebase Sync Setup"),
+      e("div",{style:{fontSize:"10px",color:"var(--dim)",marginBottom:"14px",lineHeight:"1.6"}},
+        "Firebase Realtime Database se sync karein — kisi bhi device se access ho.",e("br",null),
+        "1. console.firebase.google.com → New Project → Realtime Database → Create",e("br",null),
+        "2. Rules: ",e("code",{style:{background:"var(--card)",padding:"1px 4px",borderRadius:"2px"}},
+          '{"rules":{".read":true,".write":true}}'),e("br",null),
+        "3. Project Settings → Service Accounts → Database Secrets → Copy secret"
+      ),
+      e("div",{style:{marginBottom:"8px"}},
+        e("label",{style:{fontSize:"10px",fontWeight:"bold",color:"var(--hdr)",display:"block",marginBottom:"3px"}},"Database URL"),
+        e("input",{value:u,onChange:function(ev){setU(ev.target.value);},type:"url",className:"inp",
+          style:{width:"100%",padding:"7px 10px"},placeholder:"https://your-project-default-rtdb.firebaseio.com"})
+      ),
+      e("div",{style:{marginBottom:"12px"}},
+        e("label",{style:{fontSize:"10px",fontWeight:"bold",color:"var(--hdr)",display:"block",marginBottom:"3px"}},"Database Secret"),
+        e("input",{value:s,onChange:function(ev){setS(ev.target.value);},type:"password",className:"inp",
+          style:{width:"100%",padding:"7px 10px"},placeholder:"Database secret key…"})
+      ),
+      msg?e("div",{style:{padding:"6px 10px",borderRadius:"4px",marginBottom:"10px",fontSize:"11px",
+        background:msg.startsWith("✓")?"var(--green-pale)":"var(--red-pale)",
+        color:msg.startsWith("✓")?"var(--green)":"var(--red)"}},msg):null,
+      e("div",{style:{display:"flex",gap:"8px"}},
+        e("button",{onClick:save,className:"btn-pri"},"💾 Save & Test"),
+        e("button",{onClick:clear,className:"btn-sec"},"Clear"),
+        e("button",{onClick:p.onClose,className:"btn-sec",style:{marginLeft:"auto"}},"Close")
+      )
+    )
+  );
+}
+
+// ═══════════════════════════
+// DATA IMPORT / EXPORT MODAL
+// ═══════════════════════════
+function IOModal(p){
+  var _msg=useState(""); var msg=_msg[0]; var setMsg=_msg[1];
+  function exportJSON(){
+    var blob=new Blob([JSON.stringify(p.all,null,2)],{type:"application/json"});
+    var a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+    a.download="CourtData_Backup_"+new Date().toISOString().slice(0,10)+".json"; a.click();
+    setMsg("✓ Backup downloaded.");
+  }
+  function importJSON(){
+    var inp=document.createElement("input"); inp.type="file"; inp.accept=".json";
+    inp.onchange=function(ev){
+      var f=ev.target.files[0]; if(!f)return;
+      var rd=new FileReader(); rd.onload=function(e_){
+        try{var d=JSON.parse(e_.target.result); p.setAll(d); setMsg("✓ Data imported successfully!");}
+        catch(x){setMsg("✗ Invalid JSON file.");}
+      }; rd.readAsText(f);
+    }; inp.click();
+  }
+  function clearAll(){
+    if(!confirm("Sab data delete ho jaayega. Sure ho?")) return;
+    p.setAll({}); setMsg("✓ All data cleared.");
+  }
+  return e("div",{className:"modal-ov",onClick:function(ev){if(ev.target===ev.currentTarget)p.onClose();}},
+    e("div",{className:"modal-box"},
+      e("div",{style:{fontSize:"14px",fontWeight:"bold",color:"var(--hdr)",marginBottom:"4px"}},"📁 Data Import / Export"),
+      e("div",{style:{fontSize:"10px",color:"var(--dim)",marginBottom:"16px"}},"Data ka backup lo ya restore karo JSON file se."),
+      e("div",{style:{display:"flex",flexDirection:"column",gap:"10px"}},
+        e("div",{className:"card"},
+          e("div",{className:"card-title"},"⬇ Export / Backup"),
+          e("div",{style:{fontSize:"10px",color:"var(--dim)",marginBottom:"8px"}},"Pura data JSON file mein download ho jaayega. Safe rakhein."),
+          e("button",{onClick:exportJSON,className:"btn-grn"},"Download JSON Backup")
+        ),
+        e("div",{className:"card"},
+          e("div",{className:"card-title"},"⬆ Import / Restore"),
+          e("div",{style:{fontSize:"10px",color:"var(--dim)",marginBottom:"8px"}},"Pehle ka backup restore karne ke liye JSON file select karein."),
+          e("button",{onClick:importJSON,className:"btn-pri"},"Select JSON File to Import")
+        ),
+        e("div",{className:"card",style:{border:"1px solid #e8aaaa"}},
+          e("div",{className:"card-title",style:{color:"var(--red)"}},"🗑 Clear All Data"),
+          e("div",{style:{fontSize:"10px",color:"var(--dim)",marginBottom:"8px"}},"Sab data delete ho jaayega. Pehle backup zaroor lo!"),
+          e("button",{onClick:clearAll,className:"btn-red"},"Clear All Data")
+        )
+      ),
+      msg?e("div",{style:{padding:"6px 10px",borderRadius:"4px",marginTop:"10px",fontSize:"11px",
+        background:msg.startsWith("✓")?"var(--green-pale)":"var(--red-pale)",
+        color:msg.startsWith("✓")?"var(--green)":"var(--red)"}},msg):null,
+      e("div",{style:{marginTop:"12px",textAlign:"right"}},
+        e("button",{onClick:p.onClose,className:"btn-sec"},"Close")
+      )
+    )
+  );
+}
+
+// ═══════════════════════════
+// DATA ENTRY
+// ═══════════════════════════
+function DataEntry(p){
+  var all=p.all,mk=p.mk,prevMk=p.prevMk,upd=p.upd,grpId=p.grpId,setGrpId=p.setGrpId,ml=p.ml,ents=p.ents,pents=p.pents;
+  var grp=GROUPS.find(function(g){return g.id===grpId;})||GROUPS[0];
+  var grpEnts=ents.filter(function(en){return en.gid===grpId;});
+  var _yr=useState("2026"); var addYr=_yr[0]; var setAddYr=_yr[1];
+
+  function addRow(){
+    var en={id:uid_(),gid:grpId,tid:grp.types[0].id,yr:2026,ob:"",inst:"",itrf:"",dc:"",dn:"",dm:"",dt:""};
+    upd(setEntFn(all,mk,en));
+  }
+  function delRow(id){upd(delEntFn(all,mk,id));}
+  function fld(en,f,v){upd(setEntFn(all,mk,ow_(en,{[f]:v})));}
+
+  var flds=["ob","inst","itrf","dc","dn","dm","dt"];
+  var fHdr={ob:"OB",inst:"INST",itrf:"I-TRF",dc:"CONTD",dn:"N-CONT",dm:"CMTL",dt:"D-TRF"};
+  var fBg={ob:"#eef4fc",inst:"#eefaee",itrf:"#eefaee",dc:"#fceef0",dn:"#fceef0",dm:"#fceef0",dt:"#fceef0"};
+  var fBdr={ob:"#2a5a9c",inst:"var(--green)",itrf:"var(--green)",dc:"var(--red)",dn:"var(--red)",dm:"var(--red)",dt:"var(--red)"};
+
+  return e("div",{style:{display:"flex",height:"calc(100vh - 110px)",overflow:"hidden"}},
+    // Sidebar
+    e("div",{className:"sidebar"},
+      e("div",{style:{padding:"5px 8px",fontSize:"9px",fontWeight:"bold",color:"var(--dim)",letterSpacing:"1px",borderBottom:"1px solid var(--border)"}},"GROUP"),
+      GROUPS.map(function(g){
+        var act=grpId===g.id;
+        var cnt=ents.filter(function(en){return en.gid===g.id;}).length;
+        return e("button",{key:g.id,onClick:function(){setGrpId(g.id);},
+          className:"grp-btn "+(act?"act":"inact")},
+          e("div",null,g.lbl),
+          e("div",{style:{fontSize:"8px",color:cnt?g.col:"var(--border)",marginTop:"1px"}},cnt?" "+cnt+" rows":" empty")
+        );
+      })
+    ),
+    // Grid
+    e("div",{style:{flex:1,overflow:"auto",padding:"10px",background:"var(--bg)"}},
+      e("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"8px",flexWrap:"wrap",gap:"6px"}},
+        e("div",{style:{display:"flex",alignItems:"center",gap:"8px"}},
+          e("div",{style:{width:"4px",height:"20px",background:grp.col,borderRadius:"2px"}}),
+          e("span",{style:{fontSize:"13px",fontWeight:"bold",color:"var(--hdr)"}},[grp.lbl," "].join("")),
+          e("span",{style:{fontSize:"10px",color:"var(--dim)"}},ml)
+        ),
+        e("div",{style:{display:"flex",gap:"6px",alignItems:"center"}},
+          e("button",{onClick:addRow,className:"btn-pri"},"+ Add Row")
+        )
+      ),
+      // Legend
+      e("div",{style:{display:"flex",gap:"5px",flexWrap:"wrap",marginBottom:"8px",fontSize:"9px"}},
+        [{k:"OB",l:"Opening Bal",c:"#2a5a9c"},{k:"INST",l:"Institution Direct",c:"var(--green)"},
+         {k:"I-TRF",l:"Inst.Transfer",c:"var(--green)"},{k:"CONTD",l:"Disp.Contested",c:"var(--red)"},
+         {k:"N-CONT",l:"Non-Contested",c:"var(--red)"},{k:"CMTL",l:"Committal",c:"var(--red)"},
+         {k:"D-TRF",l:"Disp.Transfer",c:"var(--red)"}
+        ].map(function(x){return e("span",{key:x.k,style:{padding:"2px 5px",borderRadius:"2px",border:"1px solid "+x.c,color:x.c,background:"#fff"}},x.k+" = "+x.l);})
+      ),
+      grpEnts.length===0
+        ?e("div",{style:{textAlign:"center",padding:"40px",border:"2px dashed var(--border)",borderRadius:"8px",color:"var(--dim)",fontSize:"12px"}},
+            "Koi row nahi. '+ Add Row' dabao.")
+        :e("div",{style:{overflowX:"auto"}},
+            e("table",{style:{borderCollapse:"collapse",fontSize:"10px",background:"#fff",borderRadius:"6px",overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,.08)"}},
+              e("thead",null,
+                e("tr",{style:{background:"var(--blue-pale)"}},
+                  e("th",{style:{padding:"4px",borderBottom:"2px solid var(--border)",width:"24px"}},""),
+                  e("th",{style:{padding:"4px 6px",borderBottom:"2px solid var(--border)",color:"var(--hdr)",fontWeight:"bold",textAlign:"left",fontSize:"9px",minWidth:"64px"}},"YEAR"),
+                  grp.types.map(function(t){
+                    return e("th",{key:t.id,colSpan:7,style:{padding:"5px 3px",borderBottom:"2px solid var(--border)",
+                      color:"#fff",background:grp.col,fontSize:"10px",fontWeight:"bold",textAlign:"center",
+                      minWidth:String(7*56)+"px"}},t.lbl);
+                  }),
+                  e("th",{style:{padding:"4px 6px",borderBottom:"2px solid var(--border)",color:"var(--green)",fontWeight:"bold",fontSize:"9px",minWidth:"56px"}},"CLOSING"),
+                  e("th",{style:{padding:"4px",borderBottom:"2px solid var(--border)",width:"24px"}})
+                ),
+                e("tr",{style:{background:"var(--card)"}},
+                  e("th",{style:{padding:"3px"}}),
+                  e("th",{style:{padding:"3px"}}),
+                  grp.types.map(function(t){
+                    return flds.map(function(f){
+                      return e("th",{key:t.id+f,style:{padding:"3px 2px",color:f==="ob"?"#2a5a9c":f[0]==="i"?"var(--green)":"var(--red)",
+                        fontSize:"9px",fontWeight:"bold",textAlign:"center",minWidth:"56px",
+                        borderLeft:f==="ob"?"2px solid var(--border)":"none",
+                        background:fBg[f]}},fHdr[f]);
+                    });
+                  }),
+                  e("th",{style:{padding:"3px"}}),
+                  e("th",{style:{padding:"3px"}})
+                )
+              ),
+              e("tbody",null,
+                grpEnts.map(function(en,ri){
+                  var ob=entOB(en,pents); var cl=entCl(en,pents);
+                  var autoOb=(en.ob===""||en.ob===undefined);
+                  return e("tr",{key:en.id,style:{background:ri%2===0?"#fff":"var(--row-alt)"}},
+                    e("td",{style:{padding:"2px",textAlign:"center"}},
+                      e("button",{onClick:function(){delRow(en.id);},
+                        style:{background:"none",border:"none",cursor:"pointer",color:"#ccc",fontSize:"13px",lineHeight:1}},"✕")),
+                    e("td",{style:{padding:"2px",borderLeft:"2px solid var(--border)"}},
+                      e("select",{value:en.yr,onChange:function(ev){fld(en,"yr",+ev.target.value);},
+                        className:"inp",style:{width:"62px",padding:"2px 3px",fontWeight:"bold",color:"var(--hdr)",background:"var(--blue-pale)"}},
+                        YEARS.map(function(y){return e("option",{key:y,value:y},y);}))
+                    ),
+                    grp.types.map(function(t){
+                      return flds.map(function(f){
+                        var val=f==="ob"?ob:(en[f]||"");
+                        return e("td",{key:t.id+f,style:{padding:"2px",background:fBg[f],borderLeft:f==="ob"?"2px solid var(--border)":"none"}},
+                          e("input",{className:"vi "+f,type:"number",min:"0",
+                            value:val,title:f==="ob"&&autoOb?"Auto dari prev month":"",
+                            style:{opacity:f==="ob"&&autoOb?0.55:1,borderColor:fBdr[f]},
+                            onChange:function(ev){fld(en,f,ev.target.value);}})
+                        );
+                      });
+                    }),
+                    e("td",{style:{padding:"4px 6px",fontWeight:"bold",textAlign:"right",
+                      color:cl>0?"var(--green)":cl<0?"var(--red)":"var(--dim)"}},cl||"-"),
+                    e("td",{style:{padding:"2px"}})
+                  );
+                })
+              )
+            )
+          )
+    )
+  );
+}
+
+// ═══════════════════════════
+// STATEMENTS PANEL
+// ═══════════════════════════
+function StmtsPanel(p){
+  var all=p.all,mk=p.mk,prevMk=p.prevMk,upd=p.upd,sid=p.sid,setSid=p.setSid;
+  var hasData=p.hasData,selM=p.selM,selY=p.selY,ml=p.ml,ents=p.ents,pents=p.pents;
+  return e("div",null,
+    e("div",{className:"stmt-tabs"},
+      !hasData?e("div",{style:{fontSize:"11px",color:"var(--red)",marginBottom:"6px",
+        padding:"5px 10px",background:"var(--red-pale)",borderRadius:"4px"}},
+        "⚠ Data Entry mein jaao — rows add karo, case type tick karo, figures bharo."):null,
+      FREQ_GROUPS.map(function(fg){
+        var gs=STMTS.filter(function(s){return s.freq===fg.id;});
+        return e("div",{key:fg.id,style:{marginBottom:"5px"}},
+          e("div",{className:"freq-lbl",style:{color:fg.col}},fg.lbl),
+          e("div",{style:{display:"flex",flexWrap:"wrap"}},
+            gs.map(function(s){
+              var act=sid===s.id;
+              return e("button",{key:s.id,onClick:function(){setSid(s.id);},
+                className:"stab"+(act?" act":"")+((!hasData&&!act)?" nodata":"")},
+                s.lbl);
+            })
+          )
+        );
+      })
+    ),
+    e("div",{style:{padding:"12px",overflowY:"auto",height:"calc(100vh - 210px)"}},
+      e(StmtRender,{id:sid,all:all,mk:mk,prevMk:prevMk,upd:upd,selM:selM,selY:selY,ml:ml,ents:ents,pents:pents})
+    )
+  );
+}
+
+// ═══════════════════════════
+// STATEMENT RENDERER
+// ═══════════════════════════
+function StmtRender(p){
+  var id=p.id,all=p.all,mk=p.mk,upd=p.upd,selM=p.selM,selY=p.selY,ml=p.ml,ents=p.ents,pents=p.pents;
+
+  var F=function(pairs,fid,yrs){return sumF_(ents,pents,pairs,fid,yrs);};
+  var Fs=function(pairs,fids,yrs){return sumFs_(ents,pents,pairs,fids,yrs);};
+  var Cl=function(pairs,yrs){return Cl_(ents,pents,pairs,yrs);};
+  var ClY=function(pairs,yr){return ClY_(ents,pents,pairs,yr);};
+  var gm=function(k,df){return getMan(all,mk,k,df);};
+  var sm=function(k,v){upd(setManFn(all,mk,k,v));};
+
+  var Hdr=function(title,sub){
+    return e("div",{className:"shdr"},
+      e("div",{className:"shdr-title"},title),
+      sub?e("div",{className:"shdr-sub"},sub):null);
+  };
+  var Sec=function(lbl){return e("div",{className:"sec-hdr"},lbl);};
+
+  // Table helper - accepts array of {cells:[]} or React elements
+  var Tbl=function(hdrs,rows,totRow){
+    return e("div",{style:{overflowX:"auto",marginBottom:"8px"}},
+      e("table",{className:"tbl"},
+        e("thead",null,e("tr",null,hdrs.map(function(h,i){return e("th",{key:i},h);}))),
+        e("tbody",null,
+          (rows||[]).map(function(r,ri){
+            if(!r||typeof r!=="object"||!r.cells) return r;
+            return e("tr",{key:ri,className:r.tot?"tot":r.grn?"grn":"",
+              style:{background:ri%2===0?"#fff":"var(--row-alt)"}},
+              r.cells.map(function(c,ci){
+                return e("td",{key:ci,style:{fontWeight:r.tot||r.bold?"bold":"normal",
+                  color:r.grn?"var(--green)":r.tot?"var(--hdr)":c===0?"var(--dim)":"var(--text)"}},
+                  c===0||c===null?"—":c);
+              })
+            );
+          }),
+          totRow?e("tr",{className:"tot"},totRow.map(function(c,i){return e("td",{key:i},c===0?"—":c);})):null
+        )
+      )
+    );
+  };
+
+  var FiI=function(k,df){
+    return e("input",{type:"number",min:"0",className:"inp",value:gm(k,df||"0"),
+      onChange:function(ev){sm(k,ev.target.value);},style:{width:"62px",textAlign:"right",padding:"3px 5px"}});
+  };
+  var FiTd=function(k){return e("td",null,FiI(k));};
+
+  // Common aggregates
+  var cOB=F(ALL_PAIRS,"ob"),cInstD=F(ALL_PAIRS,"inst"),cInstT=F(ALL_PAIRS,"itrf");
+  var cInst=cInstD+cInstT;
+  var cDispD=Fs(ALL_PAIRS,["dc","dn","dm"]),cDispT=F(ALL_PAIRS,"dt");
+  var cCl=Cl(ALL_PAIRS);
+  var nfCl=Cl(P_NONFR),frCl=Cl(P_FR);
+
+  // Years with data
+  var actYrs=YEARS.filter(function(y){return ents.some(function(en){return en.yr===y;});});
+  if(actYrs.length===0) actYrs=YEARS.slice(-10);
+
+  // All years from 1993
+  var allYrs=YEARS; // 1993 to present
+
+  // ── INFORMATION ──────────────────────────────────────
+  if(id==="info") return e("div",null,
+    Hdr("Information regarding Civil and Criminal Cases","Court of ACJM, Baghpat — "+ml),
+    e("div",{style:{overflowX:"auto",marginBottom:"8px"}},
+      e("table",{className:"tbl"},
+        e("thead",null,
+          e("tr",null,
+            e("th",{rowSpan:2,style:{textAlign:"left",minWidth:"120px"}},"Nature of Case"),
+            e("th",{rowSpan:2},"Opening Balance"),
+            e("th",{colSpan:2,style:{background:"var(--green-pale)",color:"var(--green)"}},"Total Institution"),
+            e("th",{colSpan:2,style:{background:"#fef0e8",color:"#8a3a00"}},"Total Disposal"),
+            e("th",{rowSpan:2,style:{color:"var(--green)"}},"Closing Balance")
+          ),
+          e("tr",null,
+            e("th",{style:{background:"var(--green-pale)",color:"var(--green)",fontSize:"9px"}},"Direct"),
+            e("th",{style:{background:"var(--green-pale)",color:"var(--green)",fontSize:"9px"}},"By Transfer"),
+            e("th",{style:{background:"#fef0e8",color:"#8a3a00",fontSize:"9px"}},"Direct"),
+            e("th",{style:{background:"#fef0e8",color:"#8a3a00",fontSize:"9px"}},"By Transfer")
+          )
+        ),
+        e("tbody",null,
+          e("tr",{style:{background:"#fff"}},
+            e("td",{style:{fontWeight:"bold"}},"Criminal Cases"),
+            e("td",null,cOB||0),
+            e("td",{style:{color:"var(--green)"}},[cInstD||0]),
+            e("td",{style:{color:"var(--green)"}},[cInstT||0]),
+            e("td",{style:{color:"#8a3a00"}},[cDispD||0]),
+            e("td",{style:{color:"#8a3a00"}},[cDispT||0]),
+            e("td",{style:{fontWeight:"bold",color:"var(--green)"}},[cCl])
+          ),
+          e("tr",{style:{background:"var(--row-alt)"}},
+            e("td",null,"Civil Cases"),
+            e("td",null,"—"),e("td",null,"—"),e("td",null,"—"),e("td",null,"—"),e("td",null,"—"),e("td",null,"—")
+          ),
+          e("tr",{className:"tot"},
+            e("td",null,"Total"),
+            e("td",null,cOB||0),
+            e("td",null,cInstD||0),e("td",null,cInstT||0),
+            e("td",null,cDispD||0),e("td",null,cDispT||0),
+            e("td",{style:{color:"var(--green)"}},[cCl])
+          )
+        )
+      )
+    ));
+
+  // ── PENDENCY / ARREARS ────────────────────────────────
+  if(id==="pendency"){
+    var y5=YEARS.filter(function(y){return y<=selY-5;});
+    var nfOB=F(P_NONFR,"ob"),nfInstD=F(P_NONFR,"inst"),nfInstT=F(P_NONFR,"itrf");
+    var nfDispD=Fs(P_NONFR,["dc","dn","dm"]),nfDispT=F(P_NONFR,"dt");
+    var frOB=F(P_FR,"ob"),frInstD=F(P_FR,"inst"),frInstT=F(P_FR,"itrf");
+    var frDispD=Fs(P_FR,["dc","dn","dm"]),frDispT=F(P_FR,"dt");
+    var mkCell=function(v){return v||0;};
+    // rows: Civil, Criminal, Total for each column
+    var rows=[
+      {lbl:"Pendency (Excluding Pre Trial Cases)",
+       ob:[0,nfOB,nfOB], instD:[0,nfInstD,nfInstD], instT:[0,nfInstT,nfInstT],
+       dispD:[0,nfDispD,nfDispD], dispT:[0,nfDispT,nfDispT], cl:[0,nfCl,nfCl]},
+      {lbl:"Pre Trial Cases",
+       ob:[0,frOB,frOB], instD:[0,frInstD,frInstD], instT:[0,frInstT,frInstT],
+       dispD:[0,frDispD,frDispD], dispT:[0,frDispT,frDispT], cl:[0,frCl,frCl]},
+      {lbl:"Total",
+       ob:[0,cOB,cOB], instD:[0,cInstD,cInstD], instT:[0,cInstT,cInstT],
+       dispD:[0,cDispD,cDispD], dispT:[0,cDispT,cDispT], cl:[0,cCl,cCl], tot:true},
+    ];
+    var sub=["Civil","Criminal","Total"];
+    return e("div",null,
+      Hdr("Pendency / Arrears for the month of "+ml,"Court of ACJM, Baghpat"),
+      e("div",{style:{overflowX:"auto",marginBottom:"8px"}},
+        e("table",{className:"tbl"},
+          e("thead",null,
+            e("tr",null,
+              e("th",{rowSpan:2,style:{textAlign:"left",minWidth:"220px"}},""),
+              e("th",{colSpan:3},"Opening Balance"),
+              e("th",{colSpan:3},"Institution During Month (Actual)"),
+              e("th",{colSpan:3},"Institution by way of Transfer"),
+              e("th",{colSpan:3},"Disposal During Month (Actual)"),
+              e("th",{colSpan:3},"Disposal by way of Transfer"),
+              e("th",{colSpan:3},"Closing Balance")
+            ),
+            e("tr",null,
+              sub.map(function(s,i){return e("th",{key:"ob"+i,style:{fontSize:"9px",fontWeight:"normal"}},s);}),
+              sub.map(function(s,i){return e("th",{key:"id"+i,style:{fontSize:"9px",fontWeight:"normal",color:"var(--green)"}},s);}),
+              sub.map(function(s,i){return e("th",{key:"it"+i,style:{fontSize:"9px",fontWeight:"normal",color:"var(--green)"}},s);}),
+              sub.map(function(s,i){return e("th",{key:"dd"+i,style:{fontSize:"9px",fontWeight:"normal",color:"#8a3a00"}},s);}),
+              sub.map(function(s,i){return e("th",{key:"dt"+i,style:{fontSize:"9px",fontWeight:"normal",color:"#8a3a00"}},s);}),
+              sub.map(function(s,i){return e("th",{key:"cl"+i,style:{fontSize:"9px",fontWeight:"normal",color:"var(--green)"}},s);})
+            )
+          ),
+          e("tbody",null,rows.map(function(r,ri){
+            var bg=r.tot?"var(--blue-pale)":ri%2===0?"#fff":"var(--row-alt)";
+            var fw=r.tot?"bold":"normal";
+            var dv=function(v){return v===0?"—":v||0;};
+            return e("tr",{key:ri,style:{background:bg,fontWeight:fw}},
+              e("td",{style:{fontWeight:fw,color:r.tot?"var(--hdr)":"var(--text)"}},[r.lbl]),
+              [r.ob,r.instD,r.instT,r.dispD,r.dispT,r.cl].map(function(arr,gi){
+                return arr.map(function(v,vi){
+                  return e("td",{key:gi+"-"+vi,style:{color:r.tot?"var(--hdr)":vi===0?"var(--dim)":"var(--text)"}},dv(v));
+                });
+              })
+            );
+          }))
+        )
+      ));
+  }
+
+  // ── BREAKUP ──────────────────────────────────────────
+  if(id==="breakup"){
+    var buRows=[
+      {lbl:"1. Criminal Warrant Trial Cases (Both Police Report & Complaint)",
+       pairs:ALL_PAIRS.filter(function(p_){return p_[0]==="wss"||p_[0]==="wsc";})},
+      {lbl:"2. Criminal Summon Trial Cases (Both Police Report & Complaint)",
+       pairs:ALL_PAIRS.filter(function(p_){return p_[0]==="sms"||p_[0]==="smc";})},
+      {lbl:"3. Criminal Summary trial (Excluding challan under MV Act)",pairs:[["pet","wm"]]},
+      {lbl:"4. Petty Offences (Inclusive challan under Motor Vehicle Act)",pairs:[["pet","mv"],["pet","och"]]},
+      {lbl:"5. Cases under Domestic Violence Act 2005",pairs:[]},
+      {lbl:"6. Final Reports",pairs:[["fr","fr"]]},
+      {lbl:"7. Criminal Miscellaneous (Excluding Bail Applications)",pairs:[["cmc","cmc"],["cmc","b173"]]},
+      {lbl:"8. Applications under Section 156(3) Cr.P.C.",pairs:[]},
+      {lbl:"9. Other Magistrate Cases (Not mentioned above — Bail + Other)",pairs:[["cmc","bail"]]},
+    ];
+    // Show all years 1993 onwards that have data, min show from 1993
+    var bkYrs=YEARS.filter(function(y){return ents.some(function(en){return en.yr===y;});});
+    if(!bkYrs.length) bkYrs=YEARS.slice(-10);
+    return e("div",null,
+      Hdr("Information regarding Nature-Wise Pendency of Criminal Cases","ACJM Baghpat — Year-wise Breakup as on "+dStr(selM,selY)),
+      e("div",{style:{overflowX:"auto"}},
+        e("table",{className:"tbl"},
+          e("thead",null,e("tr",null,
+            e("th",{style:{textAlign:"left",minWidth:"320px",position:"sticky",left:0,background:"var(--blue-pale)"}},"S.N. Nature of Cases"),
+            bkYrs.map(function(y){return e("th",{key:y,style:{minWidth:"40px",fontSize:"9px"}},y%100||y);}),
+            e("th",{style:{color:"var(--green)"}},"Total")
+          )),
+          e("tbody",null,
+            buRows.map(function(row,ri){
+              var tot=Cl(row.pairs);
+              var bg=ri%2===0?"#fff":"var(--row-alt)";
+              return e("tr",{key:ri,style:{background:bg}},
+                e("td",{style:{position:"sticky",left:0,background:bg}},row.lbl),
+                bkYrs.map(function(yr){var v=ClY(row.pairs,yr);
+                  return e("td",{key:yr,style:{color:v?"var(--text)":"var(--border)"}},v||"");}),
+                e("td",{style:{fontWeight:"bold",color:"var(--green)"}},tot||"")
+              );
+            }),
+            e("tr",{className:"tot"},
+              e("td",{style:{position:"sticky",left:0,background:"var(--blue-pale)"}},"Total"),
+              bkYrs.map(function(yr){return e("td",{key:yr,style:{color:"var(--green)",fontWeight:"bold"}},ClY(ALL_PAIRS,yr)||"");}),
+              e("td",{style:{color:"var(--green)",fontWeight:"bold"}},cCl||"")
+            )
+          )
+        )
+      ));
+  }
+
+  // ── CONTESTED / NON-CONTESTED ─────────────────────────
+  if(id==="contested"){
+    var trP=ALL_PAIRS.filter(function(p_){return p_[0]!=="cmc";});
+    var mcP=[["fr","fr"],["cmc","cmc"],["cmc","b173"],["cmc","bail"]];
+    var cnYrs=YEARS.filter(function(y){return ents.some(function(en){return en.yr===y;});});
+    if(!cnYrs.length) cnYrs=YEARS.slice(-12);
+    var cDefs=[
+      {lbl:"Balance at beginning",fid:"ob"},
+      {lbl:"Institution Direct",fid:"inst"},
+      {lbl:"Institution by Transfer",fid:"itrf"},
+      {lbl:"Total Institution",fids:["inst","itrf"]},
+      {lbl:"Disposal Contested",fid:"dc"},
+      {lbl:"Disposal Non-Contested",fid:"dn"},
+      {lbl:"Disposal by Committal",fid:"dm"},
+      {lbl:"Disposal by Transfer",fid:"dt"},
+      {lbl:"Total Disposal",fids:["dc","dn","dm","dt"]},
+      {lbl:"Closing Balance",fn:function(ps,yr){return ClY(ps,yr);},bold:true},
+    ];
+    function CnSec(title,pairs){
+      var totHdr=[""].concat(cnYrs).concat(["Total"]);
+      return e("div",{style:{marginBottom:"14px"}},
+        Sec(title),
+        e("div",{style:{overflowX:"auto"}},
+          e("table",{className:"tbl"},
+            e("thead",null,e("tr",null,totHdr.map(function(h,i){
+              return e("th",{key:i,style:{minWidth:i===0?"160px":"40px",fontSize:i===0?"11px":"9px"}},
+                h?h%100||h:"");
+            }))),
+            e("tbody",null,cDefs.map(function(row,ri){
+              var fn=row.fn||function(ps,yr){
+                if(row.fids) return sumFs_(ents,pents,ps,row.fids,[yr]);
+                return sumF_(ents,pents,ps,row.fid,[yr]);
+              };
+              var tot=cnYrs.reduce(function(s,yr){return s+fn(pairs,yr);},0);
+              var bg=row.bold?"var(--blue-pale)":ri%2===0?"#fff":"var(--row-alt)";
+              return e("tr",{key:ri,style:{background:bg}},
+                e("td",{style:{fontWeight:row.bold?"bold":"normal"}},[row.lbl]),
+                cnYrs.map(function(yr){var v=fn(pairs,yr);
+                  return e("td",{key:yr,style:{color:row.bold?"var(--green)":v?"var(--text)":"var(--border)",fontWeight:row.bold?"bold":"normal"}},v||"");}),
+                e("td",{style:{fontWeight:"bold",color:row.bold?"var(--green)":"var(--hdr)"}},tot||"")
+              );
+            }))
+          )
+        )
+      );
+    }
+    return e("div",null,
+      Hdr("Statement showing Institution, Disposal and Pendency",
+        "Criminal Cases from 01-"+("0"+(selM+1)).slice(-2)+"-"+selY+" to "+lastDay(selM,selY)+"-"+("0"+(selM+1)).slice(-2)+"-"+selY+" — ACJM Baghpat"),
+      CnSec("Criminal Trial Cases (W/S + Summons + Petty)",trP),
+      CnSec("Criminal Misc Cases (Bail, CMC, FR)",mcP),
+      e("div",{className:"card"},
+        e("div",{className:"card-title"},"ACTUAL DISPOSAL SUMMARY"),
+        e("div",{style:{display:"flex",gap:"20px",flexWrap:"wrap"}},
+          [["Contested",Fs(ALL_PAIRS,["dc"])],["Non-Contested",Fs(ALL_PAIRS,["dn"])],
+           ["Committal",Fs(ALL_PAIRS,["dm"])],["Transfer",F(ALL_PAIRS,"dt")],
+           ["Total Actual",Fs(ALL_PAIRS,["dc","dn","dm"])]].map(function(x){
+            return e("div",{key:x[0],style:{textAlign:"center"}},
+              e("div",{style:{fontSize:"9px",color:"var(--dim)",marginBottom:"2px"}},x[0]),
+              e("div",{style:{fontSize:"18px",fontWeight:"bold",color:"var(--green)"}},x[1]||0));
+          })
+        )
+      )
+    );
+  }
+
+  // ── ACTUAL DISPOSAL ───────────────────────────────────
+  if(id==="act_dispo"){
+    // Years from 1996 onwards with data
+    var adYrs=YEARS.filter(function(y){return y>=1996&&ents.some(function(en){return en.yr===y;});});
+    if(!adYrs.length) adYrs=YEARS.filter(function(y){return y>=1996;}).slice(-15);
+    return e("div",null,
+      Hdr("Statement required by Hon'ble High Court","Year-wise Actual Disposal — ACJM Baghpat — "+ml),
+      e("div",{style:{overflowX:"auto"}},
+        e("table",{className:"tbl"},
+          e("thead",null,e("tr",null,
+            e("th",{style:{minWidth:"180px"}},"Year"),
+            adYrs.map(function(y){return e("th",{key:y,style:{minWidth:"40px",fontSize:"9px"}},y%100||y);}),
+            e("th",null,"Total")
+          )),
+          e("tbody",null,
+            e("tr",{style:{background:"var(--row-alt)"}},
+              e("td",{style:{color:"var(--dim)"}},"Civil Cases Disposal"),
+              adYrs.map(function(yr){return e("td",{key:yr,style:{color:"var(--dim)"}},"--");}),
+              e("td",{style:{color:"var(--dim)"}},"--")
+            ),
+            e("tr",{style:{background:"#fff",fontWeight:"bold"}},
+              e("td",null,"Criminal Cases Disposal"),
+              adYrs.map(function(yr){var v=Fs(ALL_PAIRS,["dc","dn","dm","dt"],[yr]);
+                return e("td",{key:yr,style:{color:v?"var(--text)":"var(--border)"}},v||"");}),
+              e("td",{style:{fontWeight:"bold",color:"var(--green)"}},Fs(ALL_PAIRS,["dc","dn","dm","dt"]))
+            )
+          ),
+          e("tfoot",null,e("tr",{className:"tot"},
+            e("td",null,"Total"),
+            adYrs.map(function(yr){var v=Fs(ALL_PAIRS,["dc","dn","dm","dt"],[yr]);
+              return e("td",{key:yr,style:{color:"var(--green)",fontWeight:"bold"}},v||"");}),
+            e("td",{style:{color:"var(--green)",fontWeight:"bold"}},Fs(ALL_PAIRS,["dc","dn","dm","dt"]))
+          ))
+        )
+      ));
+  }
+
+  // ── APAR DJ ──────────────────────────────────────────
+  if(id==="apar"){
+    var aparSlabs=[
+      {lbl:"5-10 years", yr:"2014-2019",yrs:YEARS.filter(function(y){return y>=2014&&y<=2019;})},
+      {lbl:"10-20 years",yr:"2005-2013",yrs:YEARS.filter(function(y){return y>=2005&&y<=2013;})},
+      {lbl:"20-30 years",yr:"1994-2004",yrs:YEARS.filter(function(y){return y>=1994&&y<=2004;})},
+      {lbl:"More than 30 years",yr:"Before 1994",yrs:YEARS.filter(function(y){return y<1994;})},
+    ];
+    return e("div",null,
+      Hdr("ANNEXURE – I","Number of Old Cases: Pendency & Disposal — Baghpat Judgeship — "+ml.toUpperCase()),
+      e("div",{style:{overflowX:"auto",marginBottom:"8px"}},
+        e("table",{className:"tbl"},
+          e("thead",null,
+            e("tr",null,
+              e("th",{rowSpan:2,style:{textAlign:"left"}},"Court's Name"),
+              e("th",{colSpan:3},"Pendency at Beginning"),
+              e("th",{colSpan:3},"Institution by Transfer"),
+              e("th",{colSpan:3},"Actual Disposal"),
+              e("th",{colSpan:3},"Disposal by Transfer"),
+              e("th",{colSpan:3},"Closing Balance")
+            ),
+            e("tr",null,
+              ["Crl","Civil","Total","Crl","Civil","Total","Crl","Civil","Total","Crl","Civil","Total","Crl","Civil","Total"].map(function(h,i){
+                return e("th",{key:i,style:{fontSize:"9px",fontWeight:"normal",
+                  color:i<3?"var(--hdr)":i<6?"var(--green)":i<9?"#8a3a00":i<12?"#8a3a00":"var(--green)"}},h);
+              })
+            )
+          ),
+          e("tbody",null,
+            aparSlabs.map(function(s,i){
+              var ob=F(P_TRIAL,"ob",s.yrs);
+              var iT=F(P_TRIAL,"itrf",s.yrs);
+              var d=Fs(P_TRIAL,["dc","dn","dm"],s.yrs);
+              var dT=F(P_TRIAL,"dt",s.yrs);
+              var cl=Cl(P_TRIAL,s.yrs);
+              var bg=i%2===0?"#fff":"var(--row-alt)";
+              return e("tr",{key:i,style:{background:bg}},
+                e("td",{style:{fontWeight:"bold",color:"var(--hdr)"}},[s.lbl+" ("+s.yr+")"]),
+                e("td",null,ob||0),e("td",{style:{color:"var(--dim)"}},"0"),e("td",null,ob||0),
+                e("td",{style:{color:"var(--green)"}},iT||0),e("td",{style:{color:"var(--dim)"}},"0"),e("td",{style:{color:"var(--green)"}},iT||0),
+                e("td",{style:{color:"#8a3a00"}},d||0),e("td",{style:{color:"var(--dim)"}},"0"),e("td",{style:{color:"#8a3a00"}},d||0),
+                e("td",null,dT||0),e("td",{style:{color:"var(--dim)"}},"0"),e("td",null,dT||0),
+                e("td",{style:{fontWeight:"bold",color:"var(--green)"}},cl),e("td",{style:{color:"var(--dim)"}},"0"),e("td",{style:{fontWeight:"bold",color:"var(--green)"}},cl)
+              );
+            })
+          )
+        )
+      ),
+      e("div",{style:{fontSize:"9px",color:"var(--dim)"}},"Civil = 0 for ACJM.")
+    );
+  }
+
+  // ── RAPE / MP-MLA ─────────────────────────────────────
+  if(id==="rape_mla"){
+    var shP=[["wss","crape"],["wss","sh"]];
+    var shOB=F(shP,"ob"),shI=F(shP,"inst"),shD=Fs(shP,["dc","dn","dm"]),shCl=Cl(shP);
+    var mpOB=F([["wss","mpmla"]],"ob"),mpD=Fs([["wss","mpmla"]],["dc","dn","dm"]),mpCl=Cl([["wss","mpmla"]]);
+    // Format per Excel: SR.NO | ACJM BAGHPAT | SC/ST Courts | Sessions Court | Magistrate Court | Total Sexual Offences
+    var rows2=[
+      {sn:1,lbl:"Name of District","acjm":"Baghpat","ses":"","mag":""},
+      {sn:2,lbl:"Number of Courts Functional","acjm":"1","ses":N(gm("rape_ses_ct"))||"","mag":"1"},
+      {sn:3,lbl:"Balance cases brought forward (Opening)",acjm:mpOB+shOB,ses:FiI("rape_ses_ob"),mag:shOB,tot:shOB+(mpOB||0)},
+      {sn:"4a",lbl:"New cases — Actual Institution",acjm:F(shP,"inst"),ses:FiI("rape_ses_id"),mag:F(shP,"inst"),tot:null},
+      {sn:"4b",lbl:"New cases — Institution by Transfer",acjm:F(shP,"itrf"),ses:FiI("rape_ses_it"),mag:F(shP,"itrf"),tot:null},
+      {sn:"5a",lbl:"Total Disposed — Actual Disposal",acjm:shD,ses:FiI("rape_ses_d"),mag:shD,tot:null},
+      {sn:"5b",lbl:"Total Disposed — Disposal by Transfer",acjm:F(shP,"dt"),ses:FiI("rape_ses_dt"),mag:F(shP,"dt"),tot:null},
+      {sn:6,lbl:"Total pending cases at end of month",acjm:shCl,ses:null,mag:shCl,tot:shCl,green:true},
+    ];
+    return e("div",null,
+      Hdr("STATUS OF THE CASES FOR THE MONTH OF "+ml.toUpperCase(),"ACJM Baghpat"),
+      e("div",{style:{overflowX:"auto",marginBottom:"8px"}},
+        e("table",{className:"tbl"},
+          e("thead",null,
+            e("tr",null,
+              e("th",null,"SR.NO."),
+              e("th",{style:{textAlign:"left",minWidth:"220px"}},"ACJM BAGHPAT"),
+              e("th",null,"SC/ST Courts Designated"),
+              e("th",null,"Sessions Court"),
+              e("th",null,"Magistrate Court"),
+              e("th",{style:{color:"var(--green)"}},"Total Cases of Sexual Offences")
+            )
+          ),
+          e("tbody",null,rows2.map(function(r,ri){
+            var bg=ri%2===0?"#fff":"var(--row-alt)";
+            var magVal=typeof r.mag==="object"?r.mag:r.mag;
+            var sesVal=typeof r.ses==="object"?r.ses:(r.ses||"—");
+            var totVal=r.tot!==null&&r.tot!==undefined?(typeof r.tot==="number"?r.tot:r.tot):"—";
+            return e("tr",{key:ri,style:{background:bg}},
+              e("td",{style:{textAlign:"center",color:"var(--dim)"}},r.sn),
+              e("td",{style:{textAlign:"left"}},[r.lbl]),
+              e("td",{style:{color:"var(--dim)"}},"—"),
+              typeof r.ses==="object"?e("td",null,r.ses):e("td",null,r.ses||"—"),
+              typeof r.mag==="number"?e("td",{style:{fontWeight:r.green?"bold":"normal",color:r.green?"var(--green)":"var(--text)"}},r.mag||0):e("td",null,r.mag),
+              typeof r.tot==="number"?e("td",{style:{fontWeight:"bold",color:r.green?"var(--green)":"var(--hdr)"}},r.tot):e("td",null,totVal)
+            );
+          }))
+        )
+      ),
+      e("div",{style:{fontSize:"9px",color:"var(--dim)"}},"Sessions Court rows are manually editable. SC/ST = not applicable for ACJM.")
+    );
+  }
+
+  // ── NDPS ──────────────────────────────────────────────
+  if(id==="ndps"){
+    var ndP=[["wss","ndps"]];
+    // Use current year as LAST column, show from 2001 to selY
+    var ndYrs=[];
+    for(var ny=2001;ny<=selY;ny++) ndYrs.push(ny);
+    var ndR=[
+      {lbl:"Opening Balance",fn:function(yr){return F(ndP,"ob",[yr]);}},
+      {lbl:"Institution",fn:function(yr){return F(ndP,"inst",[yr])+F(ndP,"itrf",[yr]);}},
+      {lbl:"Disposal",fn:function(yr){return Fs(ndP,["dc","dn","dm","dt"],[yr]);}},
+      {lbl:"Closing Balance",fn:function(yr){return Cl(ndP,[yr]);},bold:true},
+    ];
+    return e("div",null,
+      Hdr("Statement regarding Year-wise Pendency, Institution and Disposal of cases under NDPS Act",
+        "Quarter ending "+dStr(selM,selY)+" — ACJM Baghpat"),
+      Sec("Proforma 01"),
+      e("div",{style:{overflowX:"auto",marginBottom:"12px"}},
+        e("table",{className:"tbl"},
+          e("thead",null,e("tr",null,
+            e("th",{style:{minWidth:"120px"}},""),
+            ndYrs.map(function(y){return e("th",{key:y,style:{minWidth:"38px",fontSize:"9px"}},y%100||y);}),
+            e("th",null,"Total")
+          )),
+          e("tbody",null,ndR.map(function(row,ri){
+            var bg=row.bold?"var(--blue-pale)":ri%2===0?"#fff":"var(--row-alt)";
+            return e("tr",{key:ri,style:{background:bg,fontWeight:row.bold?"bold":"normal"}},
+              e("td",null,[row.lbl]),
+              ndYrs.map(function(yr){var v=row.fn(yr);
+                return e("td",{key:yr,style:{color:row.bold?"var(--green)":v?"var(--text)":"var(--border)"}},v||"");}),
+              e("td",{style:{fontWeight:"bold",color:row.bold?"var(--green)":"var(--hdr)"}},
+                ndYrs.reduce(function(t,yr){return t+row.fn(yr);},0)||"")
+            );
+          }))
+        )
+      ),
+      Sec("Proforma 02 — Statement regarding Yearwise Pendency, Institution and Disposal of cases under NDPS Act (Type-wise)"),
+      e("div",{style:{overflowX:"auto",marginBottom:"8px"}},
+        e("table",{className:"tbl"},
+          e("thead",null,e("tr",null,
+            e("th",{style:{textAlign:"left",minWidth:"140px"}},"Type of Case"),
+            ndYrs.map(function(y){return e("th",{key:y,style:{minWidth:"38px",fontSize:"9px"}},y%100||y);}),
+            e("th",null,"Total")
+          )),
+          e("tbody",null,
+            ["Opening Balance","Institution","Disposal","Closing Balance"].map(function(rowLbl,ri){
+              var bold=ri===3;
+              var bg=bold?"var(--blue-pale)":ri%2===0?"#fff":"var(--row-alt)";
+              return e("tr",{key:ri,style:{background:bg,fontWeight:bold?"bold":"normal"}},
+                e("td",null,rowLbl," ",e("span",{style:{fontSize:"8px",color:"var(--dim)"}},"(manual)")),
+                ndYrs.map(function(yr){
+                  return e("td",{key:yr},FiI("ndp2_"+ri+"_"+yr));
+                }),
+                e("td",{style:{fontWeight:"bold",color:bold?"var(--green)":"var(--hdr)"}},
+                  ndYrs.reduce(function(s,yr){return s+N(gm("ndp2_"+ri+"_"+yr));},0)||"")
+              );
+            })
+          )
+        )
+      )
+    );
+  }
+
+  // ── PETTY & NI ───────────────────────────────────────
+  if(id==="petty_ni"){
+    var mvP2=[["pet","mv"]],niP=[["smc","ni"]];
+    var mv2={ob:F(mvP2,"ob"),i:F(mvP2,"inst")+F(mvP2,"itrf"),d:Fs(mvP2,["dc","dn"]),cl:Cl(mvP2)};
+    var ni2={ob:F(niP,"ob"),i:F(niP,"inst")+F(niP,"itrf"),d:Fs(niP,["dc","dn"]),cl:Cl(niP)};
+    var munOB=N(gm("mun_ob")),munI=N(gm("mun_i")),munD=N(gm("mun_d")),munCl=munOB+munI-munD;
+    var totOB=mv2.ob+munOB+ni2.ob;
+    var totI=mv2.i+munI+ni2.i;
+    var totD=mv2.d+munD+ni2.d;
+    var totCl=mv2.cl+munCl+ni2.cl;
+    return e("div",null,
+      Hdr("Monthly Progress Report — Petty Offences & NI Act","ACJM Baghpat — "+ml),
+      e("div",{style:{overflowX:"auto"}},
+        e("table",{className:"tbl"},
+          e("thead",null,e("tr",null,
+            ["Nature of Cases","Opening Balance","Institution (Direct+Transfer)","Disposal","Closing Balance"].map(function(h,i){return e("th",{key:i},h);})
+          )),
+          e("tbody",null,
+            e("tr",{style:{background:"#fff",fontWeight:"bold"}},
+              ["Traffic Challan (Motor Vehicle Act)",mv2.ob,mv2.i||0,mv2.d||0,mv2.cl].map(function(c,i){return e("td",{key:i},c===0?"—":c);})),
+            e("tr",{style:{background:"var(--row-alt)"}},
+              e("td",null,"Municipal Challan ",e("span",{style:{fontSize:"8px",color:"var(--dim)"}},"(manual)")),
+              FiTd("mun_ob"),FiTd("mun_i"),FiTd("mun_d"),
+              e("td",{style:{fontWeight:"bold",color:"var(--green)"}},munCl||"—")),
+            e("tr",{style:{background:"#fff",fontWeight:"bold"}},
+              ["Complaint Cases u/s 138 N.I. Act",ni2.ob,ni2.i||0,ni2.d||0,ni2.cl].map(function(c,i){return e("td",{key:i},c===0?"—":c);}))
+          ),
+          e("tfoot",null,e("tr",{className:"tot"},
+            e("td",null,"Total"),
+            e("td",null,totOB||0),
+            e("td",null,totI||0),
+            e("td",null,totD||0),
+            e("td",{style:{color:"var(--green)",fontWeight:"bold"}},totCl||0)
+          ))
+        )
+      ));
+  }
+
+  // ── MONTHLY PETTY (Proforma C) ────────────────────────
+  if(id==="mthly_petty"){
+    var pOB2=F(P_PETTY,"ob"),pI2=F(P_PETTY,"inst")+F(P_PETTY,"itrf"),pD2=Fs(P_PETTY,["dc","dn"]);
+    return e("div",null,
+      Hdr("Proforma C — Monthly Petty Offences","ACJM Baghpat — "+ml),
+      Tbl(
+        ["Col 1 — Pendency at Beginning","Col 2 — Institution","Col 3 — Disposal","Col 4 — Fine Realized (Rs.)","Col 5 — Closing Balance","Remarks"],
+        [e("tr",{style:{background:"#fff"}},
+          e("td",{style:{fontWeight:"bold",fontSize:"13px"}},pOB2),
+          e("td",null,pI2||"—"),e("td",null,pD2||"—"),
+          e("td",null,FiI("petty_fine")),
+          e("td",{style:{fontWeight:"bold",fontSize:"13px",color:"var(--green)"}},pOB2+pI2-pD2),
+          e("td",null,"")
+        )]
+      )
+    );
+  }
+
+  // ── PROFORMA A+C+SUMMONS ──────────────────────────────
+  if(id==="petty_acd"){
+    var tCl3=Cl(ALL_PAIRS),pCl3=Cl(P_PETTY);
+    var pOB3=F(P_PETTY,"ob"),pI3=F(P_PETTY,"inst")+F(P_PETTY,"itrf"),pD3=Fs(P_PETTY,["dc","dn"]);
+    return e("div",null,
+      Hdr("PERFORMA 'A'","PENDENCY OF PETTY / NON PETTY OFFENCES CASES ON MONTHLY BASIS — "+ml+" — A.C.J.M., BAGHPAT"),
+      e("div",{style:{fontSize:"10px",color:"var(--dim)",marginBottom:"6px"}},"Judgeship: Baghpat"),
+      Tbl(["S.No.","Courts Name","Total No. of Criminal Cases Pending","Total No. of Criminal Petty Offences Pending","Total No. of Criminal Non-Petty Offences Pending","Remarks"],[
+        {cells:["1","A.C.J.M., Baghpat",tCl3,pCl3,tCl3-pCl3,""]},
+      ]),
+      Sec("Additional Chief Judicial Magistrate, Baghpat — (Proforma C)"),
+      e("div",{style:{overflowX:"auto",marginBottom:"8px"}},
+        e("table",{className:"tbl"},
+          e("thead",null,e("tr",null,
+            ["S.No.","Name of Court","Opening Balance","Institution","Institution by Transfer","Disposal","Disposal by Transfer","Fine Realized (Rs.)","Closing Balance"].map(function(h,i){return e("th",{key:i},h);})
+          )),
+          e("tbody",null,e("tr",{style:{background:"#fff"}},
+            e("td",null,"2"),e("td",{style:{fontWeight:"bold"}},"A.C.J.M., Baghpat"),
+            e("td",null,pOB3),e("td",null,F(P_PETTY,"inst")||0),e("td",null,F(P_PETTY,"itrf")||0),
+            e("td",null,Fs(P_PETTY,["dc","dn"])||0),e("td",null,F(P_PETTY,"dt")||0),
+            e("td",null,FiI("petty_fine")),
+            e("td",{style:{fontWeight:"bold",color:"var(--green)"}},pOB3+pI3-pD3)
+          ))
+        )
+      ),
+      Sec("Statement regarding Number of Summons to Police for Service of Process — S.No. 3"),
+      Tbl(["S.No.","Name of Court","Summons Sent to Police","Summons Served","Summons Returned (Unserved)","Summons Under Process"],[
+        e("tr",{style:{background:"#fff"}},
+          e("td",null,"3"),e("td",{style:{fontWeight:"bold"}},"A.C.J.M., Baghpat"),
+          FiTd("smn_sent"),FiTd("smn_serv"),FiTd("smn_ret"),FiTd("smn_proc")
+        )
+      ]),
+      Sec("Statement of Expeditious Disposed of Cases — S.No. 4"),
+      e("div",{style:{display:"flex",gap:"12px",flexWrap:"wrap",padding:"8px",background:"var(--card)",borderRadius:"4px"}},
+        [["exp_pend","Expeditious Pending"],["exp_disp","Disposed Expeditiously"]].map(function(x){
+          return e("div",{key:x[0],style:{textAlign:"center"}},
+            e("div",{style:{fontSize:"9px",color:"var(--dim)",marginBottom:"2px"}},x[1]),FiI(x[0]));
+        })
+      )
+    );
+  }
+
+  // ── S3 SPECIAL ────────────────────────────────────────
+  if(id==="s3"){
+    var rpP2=[["wss","crape"],["wss","sh"]], cmP2=[["wss","crape"],["wss","coth"]];
+    var mvS={ob:F([["pet","mv"]],"ob"),i:F([["pet","mv"]],"inst")+F([["pet","mv"]],"itrf"),d:Fs([["pet","mv"]],["dc","dn"])};
+    var niS={ob:F([["smc","ni"]],"ob"),i:F([["smc","ni"]],"inst")+F([["smc","ni"]],"itrf"),d:Fs([["smc","ni"]],["dc","dn"])};
+    var s3R=[
+      {sn:1,lbl:"U/S 258 Cr.P.C.",data:["—","—","—","—","—"]},
+      {sn:2,lbl:"Cases related to rape and sexual harassment",data:[F(rpP2,"ob"),F(rpP2,"inst")||0,Fs(rpP2,["dc","dn"])||0,"—",Cl(rpP2)]},
+      {sn:3,lbl:"Petty offence cases related to UTPs",manual:true,key:"s3_utp"},
+      {sn:4,lbl:"Cases related to women",manual:true,key:"s3_women"},
+      {sn:5,lbl:"Cases related to juvenile",manual:true,key:"s3_juv"},
+      {sn:6,lbl:"Differently abled persons",manual:true,key:"s3_dis"},
+      {sn:7,lbl:"Senior citizens",manual:true,key:"s3_sr"},
+      {sn:8,lbl:"Cases pending for committal",manual:true,key:"s3_commit"},
+      {sn:9,lbl:"Cases related to intellectual property rights",manual:true,key:"s3_ip"},
+      {sn:10,lbl:"Cases related to commercial disputes",manual:true,key:"s3_com"},
+      {sn:11,lbl:"Accused in jail for more than 2 years",manual:true,key:"s3_jail2"},
+      {sn:12,lbl:"Civil cases in which injunction/Stay granted",manual:true,key:"s3_inj"},
+      {sn:13,lbl:"No. of cases in which accused is in jail for more than 3 years",manual:true,key:"s3_jail3"},
+      {sn:14,lbl:"No. of cases in which accused is in jail for more than 5 years",manual:true,key:"s3_jail5"},
+      {sn:15,lbl:"Old criminal cases involving petty offences",manual:true,key:"s3_petty_old"},
+      {sn:16,lbl:"Traffic Challan",data:[mvS.ob,mvS.i||0,mvS.d||0,"—",Cl([["pet","mv"]])]},
+      {sn:17,lbl:"Municipal Challan",manual:true,key:"s3_mun"},
+      {sn:18,lbl:"Complaint Cases u/s 138 Negotiable Instrument Act",data:[niS.ob,niS.i||0,niS.d||0,"—",Cl([["smc","ni"]])]},
+      {sn:19,lbl:"Total no. of cases in which bail has been granted",manual:true,key:"s3_bail"},
+      {sn:20,lbl:"No. of cases of under trial prisoners in jail more than 6 months",manual:true,key:"s3_utp6"},
+      {sn:21,lbl:"No. of cases of under trial prisoners in jail more than 2 years",manual:true,key:"s3_utp2"},
+      {sn:22,lbl:"Cases in which proceedings before court u/s 299",manual:true,key:"s3_299"},
+    ];
+    return e("div",null,
+      Hdr("S3 — Special Category Cases","For the Month of "+ml.toUpperCase()+" — ACJM Baghpat"),
+      e("div",{style:{overflowX:"auto"}},
+        e("table",{className:"tbl"},
+          e("thead",null,e("tr",null,
+            ["S.No.","Nature of Cases","No. at Beginning of Month","Institutions","Decided during Month","Decided Otherwise / Transferred","No. of cases pending at end of month"].map(function(h,i){return e("th",{key:i},h);})
+          )),
+          e("tbody",null,s3R.map(function(r,ri){
+            if(!r.manual){
+              return e("tr",{key:ri,style:{background:ri%2===0?"#fff":"var(--row-alt)"}},
+                e("td",{style:{textAlign:"center",color:"var(--dim)"}},r.sn),
+                e("td",null,r.lbl),
+                (r.data||[]).map(function(v,i){return e("td",{key:i,style:{fontWeight:i===4?"bold":"normal",color:i===4?"var(--green)":"var(--text)"}},v);})
+              );
+            }
+            var ob=N(gm(r.key+"_ob")),ins=N(gm(r.key+"_i")),dec=N(gm(r.key+"_d")),oth=N(gm(r.key+"_o"));
+            return e("tr",{key:ri,style:{background:ri%2===0?"#fff":"var(--row-alt)"}},
+              e("td",{style:{textAlign:"center",color:"var(--dim)"}},r.sn),
+              e("td",{style:{color:"var(--dim)"}},r.lbl," ",e("span",{style:{fontSize:"8px"}},"(manual)")),
+              FiTd(r.key+"_ob"),FiTd(r.key+"_i"),FiTd(r.key+"_d"),FiTd(r.key+"_o"),
+              e("td",{style:{fontWeight:"bold",color:"var(--green)"}},ob+ins-dec-oth)
+            );
+          }))
+        )
+      ));
+  }
+
+  // ── NI BREAKUP ────────────────────────────────────────
+  if(id==="ni_breakup"){
+    var niP2=[["smc","ni"]];
+    var niOB=F(niP2,"ob"),niI=F(niP2,"inst")+F(niP2,"itrf"),niD=Fs(niP2,["dc","dn"]),niCl=Cl(niP2);
+    var niYrs=YEARS.filter(function(y){return y>=2010&&ents.some(function(en){return en.gid==="smc"&&en.tid==="ni"&&en.yr===y;});});
+    var stTot=N(gm("ni_app"))+N(gm("ni_hear"))+N(gm("ni_fin"));
+    return e("div",null,
+      Hdr("NI Act (Section 138) Breakup","ACJM Baghpat — "+ml),
+      Tbl(["Sr.No.","Name of District","Opening Balance","No. of Cases Instituted","No. of Cases Disposed","Pendency"],[
+        {cells:["1","ACJM Baghpat",niOB,niI||0,niD||0,niCl],grn:true},
+      ]),
+      e("div",{className:"card"},
+        e("div",{className:"card-title"},"Stage-wise Pendency (Manual)"),
+        e("div",{style:{display:"flex",gap:"16px",flexWrap:"wrap",alignItems:"center"}},
+          [["ni_app","Appearance"],["ni_hear","Hearing/Evidence"],["ni_fin","Final Hearing"]].map(function(x){
+            return e("div",{key:x[0],style:{textAlign:"center"}},
+              e("div",{style:{fontSize:"9px",color:"var(--dim)",marginBottom:"3px"}},x[1]),FiI(x[0]));
+          }),
+          e("div",{style:{textAlign:"center"}},
+            e("div",{style:{fontSize:"9px",color:"var(--dim)",marginBottom:"3px"}},"Stage Total"),
+            e("div",{style:{fontSize:"18px",fontWeight:"bold",color:stTot===niCl?"var(--green)":"var(--red)"}},stTot)),
+          e("div",{style:{textAlign:"center"}},
+            e("div",{style:{fontSize:"9px",color:"var(--dim)",marginBottom:"3px"}},"Should be"),
+            e("div",{style:{fontSize:"18px",fontWeight:"bold",color:"var(--gold)"}},niCl))
+        )
+      ),
+      niYrs.length?e("div",null,
+        Sec("Year-wise Closing Pendency (from "+niYrs[0]+" to "+niYrs[niYrs.length-1]+")"),
+        e("div",{style:{overflowX:"auto"}},
+          e("table",{className:"tbl"},
+            e("thead",null,e("tr",null,
+              niYrs.map(function(y){return e("th",{key:y,style:{minWidth:"40px",fontSize:"9px"}},y%100||y);}).concat([e("th",null,"Total")])
+            )),
+            e("tbody",null,e("tr",{style:{background:"#fff"}},
+              niYrs.map(function(yr){var v=ClY(niP2,yr);return e("td",{key:yr,style:{color:v?"var(--text)":"var(--border)"}},v||"");}),
+              e("td",{style:{fontWeight:"bold",color:"var(--green)"}},niCl)
+            ))
+          )
+        )
+      ):null
+    );
+  }
+
+  // ── MONTHLY-1 ──
+  if(id==="mthly1"){
+    var decP=[
+      {lbl:"Upto 1990",yrs:YEARS.filter(function(y){return y<=1990;})},
+      {lbl:"1991-2000",yrs:YEARS.filter(function(y){return y>=1991&&y<=2000;})},
+      {lbl:"2001-2010",yrs:YEARS.filter(function(y){return y>=2001&&y<=2010;})},
+      {lbl:"2011-2020",yrs:YEARS.filter(function(y){return y>=2011&&y<=2020;})},
+      {lbl:"2021+",yrs:YEARS.filter(function(y){return y>=2021;})},
+    ];
+    var wPairs=ALL_PAIRS.filter(function(p_){return p_[0]==="wss"||p_[0]==="wsc";});
+    var sPairs=ALL_PAIRS.filter(function(p_){return p_[0]==="sms"||p_[0]==="smc";});
+    function DecTbl(title,pairs){
+      return e("div",null,
+        Sec(title),
+        e("div",{style:{overflowX:"auto",marginBottom:"8px"}},
+          e("table",{className:"tbl"},
+            e("thead",null,e("tr",null,
+              e("th",{style:{minWidth:"120px"}},"District/Court"),
+              decP.map(function(d,i){return e("th",{key:"p"+i},d.lbl+" Pendency");}),
+              decP.map(function(d,i){return e("th",{key:"d"+i},d.lbl+" Disposal");}),
+              e("th",null,"Total Pending")
+            )),
+            e("tbody",null,e("tr",{style:{background:"#fff",fontWeight:"bold"}},
+              e("td",null,"ACJM Baghpat"),
+              decP.map(function(d,i){return e("td",{key:"p"+i},F(pairs,"ob",d.yrs)||"—");}),
+              decP.map(function(d,i){return e("td",{key:"d"+i},Fs(pairs,["dc","dn","dm"],d.yrs)||"—");}),
+              e("td",{style:{color:"var(--green)"}},Cl(pairs))
+            ))
+          )
+        )
+      );
+    }
+    return e("div",null,
+      Hdr("Monthly Statement — ACJM Baghpat — "+ml),
+      Sec("Proforma-1 — Month-wise Disposal of Warrant Cases"),
+      DecTbl("W/S Cases (Police Challan + Complaint)",wPairs),
+      Sec("Proforma-2 — Month-wise Disposal of Summon Cases"),
+      DecTbl("Summons Cases (State + Complaint)",sPairs),
+      Sec("Proforma-3 — Month-wise Pendency & Disposal of Undertrial Cases"),
+      e("div",{style:{padding:"10px",background:"var(--card)",borderRadius:"4px",marginBottom:"8px"}},
+        e("div",{style:{display:"flex",gap:"12px",flexWrap:"wrap"}},
+          [["utp_3y",">3 Yrs Pend"],["utp_5y",">5 Yrs Pend"],["utp_10y",">10 Yrs Pend"],
+           ["utpd_3y",">3 Yrs Disp"],["utpd_5y",">5 Yrs Disp"],["utpd_10y",">10 Yrs Disp"]
+          ].map(function(x){return e("div",{key:x[0],style:{textAlign:"center"}},
+            e("div",{style:{fontSize:"9px",color:"var(--dim)",marginBottom:"2px"}},x[1]),FiI(x[0]));})
+        )
+      ),
+      Sec("Proforma-4 — Month-wise Disposal of Final Reports"),
+      DecTbl("Final Reports",[["fr","fr"]])
+    );
+  }
+
+  // ── MONTHLY-2 ──
+  if(id==="mthly2"){
+    var ageSl=[
+      {lbl:"0-5 years",yrs:YEARS.filter(function(y){return y>=selY-5;})},
+      {lbl:"5-10 years",yrs:YEARS.filter(function(y){return y>=selY-10&&y<selY-5;})},
+      {lbl:"10-15 years",yrs:YEARS.filter(function(y){return y>=selY-15&&y<selY-10;})},
+      {lbl:"15-20 years",yrs:YEARS.filter(function(y){return y>=selY-20&&y<selY-15;})},
+      {lbl:"Over 20 years",yrs:YEARS.filter(function(y){return y<selY-20;})},
+    ];
+    return e("div",null,
+      Hdr("Monthly Statements — ACJM Baghpat — "+ml),
+      Sec("Pendency of Total Cases by Age"),
+      Tbl(["Nature"].concat(ageSl.map(function(a){return a.lbl;})).concat(["Total"]),[
+        {cells:["Civil Cases"].concat(ageSl.map(function(){return "NA";})).concat(["NA"])},
+        {cells:["Criminal Cases"].concat(ageSl.map(function(a){return Cl(ALL_PAIRS,a.yrs)||0;})).concat([cCl]),grn:true},
+      ]),
+      Sec("Cases Stayed by Higher Courts"),
+      e("div",{style:{overflowX:"auto",marginBottom:"8px"}},
+        e("table",{className:"tbl"},
+          e("thead",null,e("tr",null,["Nature","Stayed by Sessions","Stayed by HC","Stayed by SC"].map(function(h,i){return e("th",{key:i},h);}))),
+          e("tbody",null,
+            e("tr",{style:{background:"#fff"}},e("td",null,"Civil Cases"),FiTd("stay_civ_s"),FiTd("stay_civ_hc"),FiTd("stay_civ_sc")),
+            e("tr",{style:{background:"var(--row-alt)"}},e("td",null,"Criminal Cases"),FiTd("stay_crl_s"),FiTd("stay_crl_hc"),FiTd("stay_crl_sc"))
+          )
+        )
+      ),
+      Sec("Court-wise Conviction Information"),
+      e("div",{style:{overflowX:"auto",marginBottom:"8px"}},
+        e("table",{className:"tbl"},
+          e("thead",null,e("tr",null,["Court","Total Crl. Disposed","Conviction","Acquittal","Conviction %"].map(function(h,i){return e("th",{key:i},h);}))),
+          e("tbody",null,e("tr",{style:{background:"#fff"}},
+            e("td",{style:{fontWeight:"bold"}},"ACJM Baghpat"),
+            e("td",null,Fs(ALL_PAIRS,["dc","dn","dm"])||0),
+            FiTd("conv_yes"),FiTd("conv_no"),
+            e("td",{style:{fontWeight:"bold",color:"var(--green)"}},
+              (function(){var d=Fs(ALL_PAIRS,["dc","dn","dm"]);var cv=N(gm("conv_yes"));return d>0?Math.round(cv/d*100)+"%":"—";})())
+          ))
+        )
+      )
+    );
+  }
+
+  // ── MONTHLY-3 (Sessions) ──
+  if(id==="mthly3"){
+    var sesT=[
+      {k:"ses_st",lbl:"Sessions Trial"},{k:"ses_ca",lbl:"Criminal Appeal"},
+      {k:"ses_cr",lbl:"Criminal Revision"},{k:"ses_ac",lbl:"Anti Corruption Act"},
+      {k:"ses_ndps",lbl:"Spl. Trial (NDPS)"},{k:"ses_scst",lbl:"Spl. Crl. Cases (SC/ST Act)"},
+      {k:"ses_cm",lbl:"Crl. Misc. Case"},{k:"ses_ga",lbl:"Special Trial (Gangster Act)"},
+    ];
+    return e("div",null,
+      Hdr("Monthly Statement — Sessions Side Cases","ACJM Baghpat — "+ml),
+      e("div",{style:{overflowX:"auto"}},
+        e("table",{className:"tbl"},
+          e("thead",null,e("tr",null,["S.No.","Type","Opening","Inst.Direct","Inst.Transfer","Disp.Actual","Disp.Transfer","Closing","Pending >6 Months"].map(function(h,i){return e("th",{key:i},h);}))),
+          e("tbody",null,
+            sesT.map(function(r,i){
+              var ob=N(gm(r.k+"_ob")),id2=N(gm(r.k+"_id")),it=N(gm(r.k+"_it")),da=N(gm(r.k+"_da")),dt_=N(gm(r.k+"_dt"));
+              return e("tr",{key:r.k,style:{background:i%2===0?"#fff":"var(--row-alt)"}},
+                e("td",{style:{textAlign:"center",color:"var(--dim)"}},i+1),
+                e("td",null,r.lbl),
+                FiTd(r.k+"_ob"),FiTd(r.k+"_id"),FiTd(r.k+"_it"),FiTd(r.k+"_da"),FiTd(r.k+"_dt"),
+                e("td",{style:{fontWeight:"bold",color:"var(--green)"}},ob+id2+it-da-dt_||"—"),
+                FiTd(r.k+"_6m")
+              );
+            }),
+            e("tr",{className:"tot"},
+              e("td",{colSpan:2},"TOTAL"),
+              [0,1,2,3,4].map(function(i){
+                var keys=[["_ob"],["_id"],["_it"],["_da"],["_dt"]];
+                return e("td",{key:i},sesT.reduce(function(s,r){return s+N(gm(r.k+keys[i][0]));},0)||"—");
+              }),
+              e("td",{style:{color:"var(--green)"}},sesT.reduce(function(s,r){return s+N(gm(r.k+"_ob"))+N(gm(r.k+"_id"))+N(gm(r.k+"_it"))-N(gm(r.k+"_da"))-N(gm(r.k+"_dt"));},0)||"—"),
+              e("td",null,sesT.reduce(function(s,r){return s+N(gm(r.k+"_6m"));},0)||"—")
+            )
+          )
+        )
+      ));
+  }
+
+  // ── 7 YEAR OLD ──
+  if(id==="yr7old"){
+    var y7=YEARS.filter(function(y){return y<=selY-7;});
+    return e("div",null,
+      Hdr("Statement showing Seven Year Old Cases","ACJM Baghpat — "+ml),
+      Tbl(["Type of Cases","Opening Balance","Institution","Disposal","Closing Balance","Remarks"],[
+        {cells:["Criminal Cases",F(ALL_PAIRS,"ob",y7)||0,F(ALL_PAIRS,"inst",y7)+F(ALL_PAIRS,"itrf",y7)||0,Fs(ALL_PAIRS,["dc","dn","dm"],y7)||0,Cl(ALL_PAIRS,y7),""],grn:true},
+        {cells:["Criminal Misc. Cases",F(P_MISC,"ob",y7)||0,F(P_MISC,"inst",y7)+F(P_MISC,"itrf",y7)||0,Fs(P_MISC,["dc","dn","dm"],y7)||0,Cl(P_MISC,y7),""]},
+        {cells:["Civil Cases","—","—","—","—","—"]},
+      ])
+    );
+  }
+
+  // ── 299 CRPC ──
+  if(id==="crpc299") return e("div",null,
+    Hdr("Statement showing Accused persons u/s 299 Cr.P.C.","ACJM Baghpat — "+ml),
+    e("div",{style:{display:"flex",gap:"16px",flexWrap:"wrap",padding:"12px",background:"var(--card)",borderRadius:"6px",marginBottom:"8px"}},
+      [["crpc299_pend","Cases pending (299 CrPC proceedings recorded)"],["crpc299_comp","Cases where 299 CrPC proceedings completed"]].map(function(x){
+        return e("div",{key:x[0],style:{textAlign:"center"}},
+          e("div",{style:{fontSize:"10px",color:"var(--dim)",marginBottom:"4px",maxWidth:"180px"}},x[1]),FiI(x[0]));
+      })
+    ),
+    e("div",{style:{marginTop:"8px"}},
+      e("label",{style:{fontSize:"10px",color:"var(--dim)",display:"block",marginBottom:"3px"}},"Remarks"),
+      e("input",{type:"text",className:"inp",value:gm("crpc299_rem"),onChange:function(ev){sm("crpc299_rem",ev.target.value);},
+        style:{width:"400px",padding:"5px 8px"},placeholder:"Remarks…"})
+    )
+  );
+
+  // ── MISSION MODE ──
+  if(id==="mission"){
+    var mmT=[
+      {sn:1,lbl:"Session Trial",manual:true,key:"mm_ses"},
+      {sn:2,lbl:"Warrant Trial",pairs:ALL_PAIRS.filter(function(p_){return p_[0]==="wss"||p_[0]==="wsc";})},
+      {sn:3,lbl:"Arms Act",pairs:[["wss","arms"]]},
+      {sn:4,lbl:"Family Related Cases",manual:true,key:"mm_fam"},
+      {sn:5,lbl:"Cases u/s 138 N.I. Act",pairs:[["smc","ni"]]},
+      {sn:6,lbl:"Summon Trial",pairs:ALL_PAIRS.filter(function(p_){return p_[0]==="sms"||p_[0]==="smc";})},
+      {sn:7,lbl:"LDA",manual:true,key:"mm_lda"},
+      {sn:8,lbl:"Traffic Challan (MV Act)",pairs:[["pet","mv"]]},
+      {sn:9,lbl:"ARTO Challan",manual:true,key:"mm_arto"},
+      {sn:10,lbl:"Cases under Municipal Corp.",manual:true,key:"mm_mun"},
+      {sn:11,lbl:"Forest Act",manual:true,key:"mm_for"},
+      {sn:12,lbl:"Excise Act",pairs:[["wss","ex"]]},
+      {sn:13,lbl:"Labour Act",manual:true,key:"mm_lab"},
+      {sn:14,lbl:"Entertainment Tax",manual:true,key:"mm_ent"},
+      {sn:15,lbl:"Factory Act",manual:true,key:"mm_fac"},
+      {sn:16,lbl:"Wild Life Act",manual:true,key:"mm_wld"},
+      {sn:17,lbl:"Applications u/s 156(3) CrPC",manual:true,key:"mm_156"},
+      {sn:18,lbl:"Cases u/s 446 CrPC",pairs:[["cmc","cmc"]]},
+      {sn:19,lbl:"NDPS Act",pairs:[["wss","ndps"]]},
+      {sn:20,lbl:"Other Cases",manual:true,key:"mm_oth"},
+    ];
+    var grandTot=mmT.reduce(function(s,r){return s+(r.manual?N(gm(r.key)):Cl(r.pairs));},0);
+    return e("div",null,
+      Hdr("Statement regarding Pendency of Cases — Mission Mode","Bimonthly — ACJM Baghpat — "+ml),
+      e("div",{style:{overflowX:"auto",marginBottom:"8px"}},
+        e("table",{className:"tbl"},
+          e("thead",null,e("tr",null,
+            ["Sr.No.","Type of Cases","Pendency"].map(function(h,i){return e("th",{key:i},h);})
+          )),
+          e("tbody",null,
+            mmT.map(function(r,ri){
+              var pend=r.manual?N(gm(r.key)):Cl(r.pairs);
+              return e("tr",{key:ri,style:{background:ri%2===0?"#fff":"var(--row-alt)"}},
+                e("td",{style:{textAlign:"center",color:"var(--dim)"}},r.sn),
+                e("td",{style:{color:r.manual?"var(--dim)":"var(--hdr)",fontWeight:r.manual?"normal":"bold"}},
+                  r.lbl,r.manual?e("span",{style:{fontSize:"8px",color:"#aaa"}}," (manual)"):null),
+                r.manual
+                  ?e("td",null,FiI(r.key))
+                  :e("td",{style:{fontWeight:"bold",color:"var(--green)"}},pend||"—")
+              );
+            })
+          )
+        )
+      ),
+      e("div",{className:"card",style:{marginTop:"8px"}},
+        e("div",{className:"card-title"},"GRAND TOTAL"),
+        e("div",{style:{fontSize:"22px",fontWeight:"bold",color:"var(--green)"}},grandTot||"—")
+      )
+    );
+  }
+
+  // ── QUOTA / OUT-TURN ──
+  if(id==="quota"){
+    var lvR=[{k:"q_sun",lbl:"Sunday"},{k:"q_sat2",lbl:"2nd Saturday"},{k:"q_cl",lbl:"Compensatory Leave"},
+             {k:"q_cal",lbl:"Casual Leave"},{k:"q_rec",lbl:"Summer/Winter Recess"},{k:"q_sat4",lbl:"4th Saturday"},
+             {k:"q_hol",lbl:"Holiday"},{k:"q_trn",lbl:"Training & Journey Leave"}];
+    var wkR=[
+      {k:"q_mpmla",lbl:"MP/MLA Cases (Contested) @40+12",u:function(){return N(gm("q_mpmla"))*(40+12);}},
+      {k:"q_mpmla2",lbl:"MP/MLA Cases (NC) @40",u:function(){return N(gm("q_mpmla2"))*40;}},
+      {k:"q_wcont",lbl:"Warrant Cases (Contested) @6+3",u:function(){return N(gm("q_wcont"))*(6+3);}},
+      {k:"q_wncont",lbl:"Warrant Cases (Non-Cont.) @6+2",u:function(){return N(gm("q_wncont"))*(6+2);}},
+      {k:"q_woth",lbl:"Warrant Cases (Other) @6+1",u:function(){return N(gm("q_woth"))*(6+1);}},
+      {k:"q_bail",lbl:"Bail Applications @1/10",u:function(){return Math.round(N(gm("q_bail"))/10);}},
+      {k:"q_fr",lbl:"Final Reports @1/3",u:function(){return Math.round(N(gm("q_fr"))/3);}},
+      {k:"q_conf",lbl:"Confession Cases @0.5",u:function(){return Math.round(N(gm("q_conf"))*.5);}},
+      {k:"q_pg",lbl:"Pages Evidence @/10",u:function(){return Math.round(N(gm("q_pg"))/10);}},
+      {k:"q_cmc",lbl:"Criminal Misc Work @2",u:function(){return N(gm("q_cmc"))*2;}},
+      {k:"q_jail",lbl:"Jail Inspection @4",u:function(){return N(gm("q_jail"))*4;}},
+      {k:"q_admin",lbl:"Administrative Work",u:function(){return N(gm("q_admin"));}},
+    ];
+    var totDays=N(gm("q_total")), exemptDays=lvR.reduce(function(s,r){return s+N(gm(r.k));},0);
+    var workDays=totDays-exemptDays, totUnits=wkR.reduce(function(s,r){return s+r.u();},0);
+    var target=Math.round(workDays*3.28);
+    return e("div",null,
+      Hdr("Out-turn of Work Done — Monthly Quota Statement","ACJM Baghpat — "+ml),
+      e("div",{style:{display:"flex",gap:"16px",flexWrap:"wrap",padding:"12px",background:"var(--card)",borderRadius:"6px",marginBottom:"12px"}},
+        e("div",null,e("div",{style:{fontSize:"9px",color:"var(--dim)"}},"Total Days in Month"),FiI("q_total")),
+        e("div",{style:{textAlign:"center"}},e("div",{style:{fontSize:"9px",color:"var(--dim)"}},"Exempt Days"),e("div",{style:{fontSize:"18px",fontWeight:"bold",color:"var(--red)"}},exemptDays)),
+        e("div",{style:{textAlign:"center"}},e("div",{style:{fontSize:"9px",color:"var(--dim)"}},"Working Days"),e("div",{style:{fontSize:"18px",fontWeight:"bold",color:"var(--hdr)"}},workDays)),
+        e("div",{style:{textAlign:"center"}},e("div",{style:{fontSize:"9px",color:"var(--dim)"}},"Target Units @3.28/day"),e("div",{style:{fontSize:"18px",fontWeight:"bold",color:"var(--gold)"}},target)),
+        e("div",{style:{textAlign:"center"}},e("div",{style:{fontSize:"9px",color:"var(--dim)"}},"Units Achieved"),e("div",{style:{fontSize:"18px",fontWeight:"bold",color:totUnits>=target?"var(--green)":"var(--red)"}},totUnits))
+      ),
+      e("div",{style:{display:"flex",gap:"16px"}},
+        e("div",{style:{flex:1}},
+          Sec("Leave / Off Days"),
+          e("div",{style:{overflowX:"auto"}},
+          e("table",{className:"tbl"},
+            e("thead",null,e("tr",null,["Type","Days"].map(function(h,i){return e("th",{key:i},h);}))),
+            e("tbody",null,
+              lvR.map(function(r,i){
+                return e("tr",{key:r.k,style:{background:i%2===0?"#fff":"var(--row-alt)"}},
+                  e("td",null,r.lbl),
+                  e("td",null,FiI(r.k))
+                );
+              })
+            ),
+            e("tfoot",null,e("tr",{className:"tot"},
+              e("td",null,"Total Exempt Days"),
+              e("td",{style:{color:"var(--red)",fontWeight:"bold"}},exemptDays)
+            ))
+          )
+        )
+        ),
+        e("div",{style:{flex:2}},
+          Sec("Work Done"),
+          e("div",{style:{overflowX:"auto"}},
+            e("table",{className:"tbl"},
+              e("thead",null,e("tr",null,["Type of Work","Nos.","Units"].map(function(h,i){return e("th",{key:i},h);}))),
+              e("tbody",null,wkR.map(function(r,i){
+                var u=r.u();
+                return e("tr",{key:r.k,style:{background:i%2===0?"#fff":"var(--row-alt)"}},
+                  e("td",{style:{fontSize:"10px"}},r.lbl),e("td",null,FiI(r.k)),
+                  e("td",{style:{fontWeight:u>0?"bold":"normal",color:u>0?"var(--green)":"var(--dim)"}},u||"—"));
+              })),
+              e("tfoot",null,e("tr",{className:"tot"},
+                e("td",{colSpan:2},"Total Units Achieved"),
+                e("td",{style:{color:totUnits>=target?"var(--green)":"var(--red)",fontSize:"14px"}},totUnits)
+              ))
+            )
+          )
+        )
+      )
+    );
+  }
+
+  // ── QUARTERLY SH ──
+  if(id==="qtr_sh"){
+    var shP3=[["wss","crape"],["wss","sh"]];
+    var shOB=F(shP3,"ob"),shI=F(shP3,"inst")+F(shP3,"itrf"),shD=Fs(shP3,["dc","dn","dm"]),shCl=Cl(shP3);
+    return e("div",null,
+      Hdr("Quarterly Statement of Cases related to Sexual Harassment / Rape","ACJM Baghpat — "+ml),
+      Tbl(["S.No.","Description","Opening Balance","Institution","Disposal","Pendency"],[
+        {cells:["1","Total accused persons (Magistrate) — Manual"]},
+        {cells:["2","Total cases triable by Magistrate (from data)",shOB,shI||0,shD||0,shCl],grn:true},
+        {cells:["3","Total cases triable by Sessions — Manual"]},
+      ]),
+      e("div",{style:{padding:"10px",background:"var(--card)",borderRadius:"4px",marginTop:"8px"}},
+        e("div",{className:"card-title"},"Manual Entries"),
+        e("div",{style:{display:"flex",gap:"12px",flexWrap:"wrap"}},
+          [["sh_acc_ob","Accused Opening"],["sh_acc_i","Accused Inst."],["sh_acc_d","Accused Disp."],
+           ["sh_ses_ob","Sessions Opening"],["sh_ses_i","Sessions Inst."],["sh_ses_d","Sessions Disp."]
+          ].map(function(x){return e("div",{key:x[0],style:{textAlign:"center"}},
+            e("div",{style:{fontSize:"9px",color:"var(--dim)",marginBottom:"2px"}},x[1]),FiI(x[0]));})
+        )
+      )
+    );
+  }
+
+  // ── QUARTERLY INST/DISPO ──
+  if(id==="qtr_inst") return e("div",null,
+    Hdr("Cases Instituted and Disposed — Quarterly Statement","ACJM Baghpat — "+ml),
+    Tbl(["Quarter","Cases Brought Forward (Crl)","Freshly Instituted (Crl)","Disposed (Crl)","Pending at End (Crl)"],[
+      {cells:[ml,cOB,cInst||0,Fs(ALL_PAIRS,["dc","dn","dm","dt"])||0,cCl],grn:true},
+    ]),
+    e("div",{style:{fontSize:"9px",color:"var(--dim)",marginTop:"4px"}},"Civil = NA for ACJM. State-level aggregation done by DJs office.")
+  );
+
+  // ── NEW QUARTERLY STATISTICAL ──
+  if(id==="new_qtr"){
+    var ageQ=[
+      {lbl:"0-5 Yrs",yrs:YEARS.filter(function(y){return y>=selY-5;})},
+      {lbl:"5-10 Yrs",yrs:YEARS.filter(function(y){return y>=selY-10&&y<selY-5;})},
+      {lbl:"10-20 Yrs",yrs:YEARS.filter(function(y){return y>=selY-20&&y<selY-10;})},
+      {lbl:"20-30 Yrs",yrs:YEARS.filter(function(y){return y>=selY-30&&y<selY-20;})},
+      {lbl:">30 Yrs",yrs:YEARS.filter(function(y){return y<selY-30;})},
+    ];
+    var qT=[
+      {sn:"1",lbl:"Trials in Magistrate Courts (excl. POCSO/NDPS)",pairs:ALL_PAIRS.filter(function(p_){return !(p_[0]==="smc"&&p_[1]==="ni")&&!(p_[0]==="wss"&&p_[1]==="ndps");})},
+      {sn:"2",lbl:"Negotiable Instrument Cases (NI Act 138)",pairs:[["smc","ni"]]},
+      {sn:"3",lbl:"Juvenile Justice Matters",manual:true,key:"qtr_jjb"},
+      {sn:"4",lbl:"Session Trials (Except POCSO/NDPS)",manual:true,key:"qtr_ses"},
+      {sn:"5",lbl:"POCSO Matters",manual:true,key:"qtr_pocso"},
+      {sn:"6",lbl:"NDPS Matters",pairs:[["wss","ndps"]]},
+      {sn:"7",lbl:"SC/ST Matters",manual:true,key:"qtr_scst"},
+      {sn:"8",lbl:"Criminal Appeals",manual:true,key:"qtr_ca"},
+      {sn:"9",lbl:"Criminal Revisions",manual:true,key:"qtr_cv"},
+      {sn:"10",lbl:"Bail Applications",pairs:[["cmc","bail"]]},
+      {sn:"11A",lbl:"Criminal Misc Cases (CMC)",pairs:[["cmc","cmc"]]},
+      {sn:"11B",lbl:"Final Reports",pairs:[["fr","fr"]]},
+      {sn:"11C",lbl:"Motor Vehicle Act",pairs:[["pet","mv"]]},
+      {sn:"11D",lbl:"Gangster Act",manual:true,key:"qtr_gang"},
+      {sn:"11E",lbl:"Electricity Act",manual:true,key:"qtr_elec"},
+    ];
+    return e("div",null,
+      Hdr("District Court Baghpat — Quarterly Statistical Information","B. Magistrate Court Matters — "+ml),
+      e("div",{style:{overflowX:"auto"}},
+        e("table",{className:"tbl"},
+          e("thead",null,e("tr",null,
+            e("th",{style:{minWidth:"30px"}},"S.N."),
+            e("th",{style:{minWidth:"200px"}},"Matters"),
+            ageQ.map(function(a,i){return e("th",{key:i,style:{minWidth:"70px"}},a.lbl);}),
+            e("th",{style:{minWidth:"80px"}},"Total Pendency"),
+            e("th",{style:{minWidth:"80px"}},"Not Ready"),
+            e("th",{style:{minWidth:"80px"}},"Stayed by HC")
+          )),
+          e("tbody",null,qT.map(function(row,ri){
+            if(row.manual){
+              return e("tr",{key:ri,style:{background:ri%2===0?"#fff":"var(--row-alt)"}},
+                e("td",{style:{textAlign:"center",color:"var(--dim)"}},row.sn),
+                e("td",{style:{color:"var(--dim)"}},row.lbl," ",e("span",{style:{fontSize:"8px"}},"(manual/sessions)")),
+                ageQ.map(function(a,i){return e("td",{key:i},FiI(row.key+"_"+i));}),
+                e("td",{style:{fontWeight:"bold",color:"var(--green)"}},ageQ.reduce(function(s,a,i){return s+N(gm(row.key+"_"+i));},0)||"—"),
+                e("td",null,FiI(row.key+"_nr")),e("td",null,FiI(row.key+"_st"))
+              );
+            }
+            var tot=Cl(row.pairs);
+            return e("tr",{key:ri,style:{background:ri%2===0?"#fff":"var(--row-alt)"}},
+              e("td",{style:{textAlign:"center",color:"var(--dim)"}},row.sn),
+              e("td",{style:{fontWeight:"bold",color:"var(--hdr)"}},row.lbl),
+              ageQ.map(function(a,i){var v=Cl(row.pairs,a.yrs);return e("td",{key:i,style:{color:v?"var(--text)":"var(--border)"}},v||"");}),
+              e("td",{style:{fontWeight:"bold",color:"var(--green)"}},tot||"—"),
+              e("td",null,FiI("qtr_nr_"+ri)),e("td",null,FiI("qtr_st_"+ri))
+            );
+          })),
+          e("tfoot",null,e("tr",{className:"tot"},
+            e("td",{colSpan:2},"TOTAL"),
+            ageQ.map(function(a,i){
+              var v=qT.reduce(function(s,row){return s+(row.manual?ageQ.reduce(function(ss,aa,ii){return ii===i?ss+N(gm(row.key+"_"+ii)):ss;},0):Cl(row.pairs,a.yrs));},0);
+              return e("td",{key:i,style:{color:"var(--green)",fontWeight:"bold"}},v||"");
+            }),
+            e("td",{style:{color:"var(--green)",fontWeight:"bold"}},cCl||"—"),
+            e("td",{colSpan:2})
+          ))
+        )
+      ));
+  }
+
+  // ── NI QUARTERLY ──
+  if(id==="ni_qtr"){
+    var niP3=[["smc","ni"]];
+    var niCts=[
+      {k:"ni_fam",lbl:"Family Court"},{k:"ni_com",lbl:"Commercial Court"},
+      {k:"ni_jjb",lbl:"JJB"},{k:"ni_pocso",lbl:"POCSO"},{k:"ni_pca",lbl:"PCA"},
+      {k:"ni_excl",lbl:"Exclusive NI Court (ACJM — from data)",auto:true},
+      {k:"ni_lac",lbl:"LAC"},
+    ];
+    return e("div",null,
+      Hdr("NI Act — Quarterly Statement","Disposal of Old NI Act Cases — ACJM Baghpat — "+ml),
+      e("div",{style:{overflowX:"auto",marginBottom:"8px"}},
+        e("table",{className:"tbl"},
+          e("thead",null,e("tr",null,
+            ["Court / Type","Pending at beginning","Disposed during quarter"].map(function(h,i){return e("th",{key:i},h);})
+          )),
+          e("tbody",null,
+            niCts.map(function(r,ri){
+              if(r.auto) return e("tr",{key:r.k,style:{background:"#fff",fontWeight:"bold"}},
+                e("td",{style:{color:"var(--hdr)"}},r.lbl),
+                e("td",{style:{color:"var(--green)"}},F(niP3,"ob")||"—"),
+                e("td",{style:{color:"var(--green)"}},Fs(niP3,["dc","dn"])||"—")
+              );
+              return e("tr",{key:r.k,style:{background:ri%2===0?"#fff":"var(--row-alt)"}},
+                e("td",{style:{color:"var(--dim)"}},r.lbl," ",e("span",{style:{fontSize:"8px"}},"(manual)")),
+                FiTd(r.k+"_ob"),FiTd(r.k+"_d")
+              );
+            })
+          )
+        )
+      )
+    );
+  }
+
+  // ── HALF YEARLY-1 ──
+  if(id==="half1"){
+    var ageBH=[
+      {lbl:"<6 months",yrs:YEARS.filter(function(y){return y>=selY;})},
+      {lbl:"6-12 months",yrs:YEARS.filter(function(y){return y===selY-1;})},
+      {lbl:"1-3 years",yrs:YEARS.filter(function(y){return y>=selY-3&&y<selY-1;})},
+      {lbl:"3-10 years",yrs:YEARS.filter(function(y){return y>=selY-10&&y<selY-3;})},
+      {lbl:"Over 10 years",yrs:YEARS.filter(function(y){return y<selY-10;})},
+    ];
+    var hTypes=[
+      {lbl:"Police Challan Cases",pairs:ALL_PAIRS.filter(function(p_){return p_[0]==="wss";})},
+      {lbl:"Complaint Cases",pairs:ALL_PAIRS.filter(function(p_){return p_[0]==="wsc"||p_[0]==="smc";})},
+      {lbl:"Traffic Cases (MV Act)",pairs:[["pet","mv"]]},
+      {lbl:"3/7 EC Act & Food Adulteration",pairs:[["wss","ec"]]},
+      {lbl:"Other Cases",pairs:ALL_PAIRS.filter(function(p_){return (p_[0]==="pet"&&p_[1]!=="mv")||p_[0]==="fr"||p_[0]==="cmc";})},
+    ];
+    return e("div",null,
+      Hdr("Statement No. 03 — Half Yearly Statement","Institution and Disposal of Cases — ACJM Baghpat — "+ml),
+      e("div",{style:{overflowX:"auto"}},
+        e("table",{className:"tbl"},
+          e("thead",null,e("tr",null,
+            e("th",{style:{minWidth:"180px"}},"Class of Cases"),
+            e("th",null,"Pending at Beginning"),e("th",null,"Instituted"),e("th",null,"Disposed"),
+            ageBH.map(function(a,i){return e("th",{key:i,style:{minWidth:"70px",background:"var(--green-pale)",color:"var(--green)"}},a.lbl);}),
+            e("th",{style:{color:"var(--green)"}},"Closing")
+          )),
+          e("tbody",null,hTypes.map(function(row,ri){
+            var ob=F(row.pairs,"ob"),inst=F(row.pairs,"inst")+F(row.pairs,"itrf");
+            var disp=Fs(row.pairs,["dc","dn","dm","dt"]),cl2=Cl(row.pairs);
+            return e("tr",{key:ri,style:{background:ri%2===0?"#fff":"var(--row-alt)"}},
+              e("td",{style:{fontWeight:"bold"}},[row.lbl]),
+              e("td",null,ob||"—"),e("td",null,inst||"—"),e("td",null,disp||"—"),
+              ageBH.map(function(a,i){var v=Cl(row.pairs,a.yrs);return e("td",{key:i,style:{color:v?"var(--text)":"var(--border)"}},v||"");}),
+              e("td",{style:{fontWeight:"bold",color:"var(--green)"}},cl2||"—")
+            );
+          })),
+          e("tfoot",null,e("tr",{className:"tot"},
+            e("td",null,"Total"),
+            e("td",null,F(ALL_PAIRS,"ob")||"—"),
+            e("td",null,F(ALL_PAIRS,"inst")+F(ALL_PAIRS,"itrf")||"—"),
+            e("td",null,Fs(ALL_PAIRS,["dc","dn","dm","dt"])||"—"),
+            ageBH.map(function(a,i){return e("td",{key:i,style:{color:"var(--green)",fontWeight:"bold"}},Cl(ALL_PAIRS,a.yrs)||"");}),
+            e("td",{style:{color:"var(--green)",fontWeight:"bold"}},cCl||"—")
+          ))
+        )
+      ));
+  }
+
+  // ── HALF YEARLY-2 ──
+  if(id==="half2"){
+    var ageBH2=[
+      {lbl:"<6 months",yrs:YEARS.filter(function(y){return y>=selY;})},
+      {lbl:"6-12 months",yrs:YEARS.filter(function(y){return y===selY-1;})},
+      {lbl:"1-3 years",yrs:YEARS.filter(function(y){return y>=selY-3&&y<selY-1;})},
+      {lbl:"3-10 years",yrs:YEARS.filter(function(y){return y>=selY-10&&y<selY-3;})},
+      {lbl:"Over 10 years",yrs:YEARS.filter(function(y){return y<selY-10;})},
+    ];
+    return e("div",null,
+      Hdr("Statement No. 07 — Half Yearly Statement","Institution and Disposal of Cases — ACJM Baghpat — "+ml),
+      e("div",{style:{overflowX:"auto"}},
+        e("table",{className:"tbl"},
+          e("thead",null,e("tr",null,
+            e("th",{style:{minWidth:"150px"}},"Nature of Cases"),
+            e("th",null,"Pending at Beginning"),e("th",null,"Instituted"),e("th",null,"Disposed"),
+            ageBH2.map(function(a,i){return e("th",{key:i,style:{minWidth:"70px",background:"var(--green-pale)",color:"var(--green)"}},a.lbl);}),
+            e("th",{style:{color:"var(--green)"}},"Closing Total")
+          )),
+          e("tbody",null,
+            e("tr",{style:{background:"var(--row-alt)"}},
+              e("td",{style:{color:"var(--dim)"}},"Civil Cases"),
+              e("td",{style:{color:"var(--dim)"}},"—"),e("td",{style:{color:"var(--dim)"}},"—"),e("td",{style:{color:"var(--dim)"}},"—"),
+              ageBH2.map(function(a,i){return e("td",{key:i,style:{color:"var(--dim)"}},"—");}),
+              e("td",{style:{color:"var(--dim)"}},"—")),
+            e("tr",{style:{background:"#fff",fontWeight:"bold"}},
+              e("td",null,"Criminal Cases"),
+              e("td",null,cOB||"—"),e("td",null,cInst||"—"),e("td",null,Fs(ALL_PAIRS,["dc","dn","dm","dt"])||"—"),
+              ageBH2.map(function(a,i){var v=Cl(ALL_PAIRS,a.yrs);return e("td",{key:i,style:{color:v?"var(--text)":"var(--border)"}},v||"");}),
+              e("td",{style:{color:"var(--green)"}},cCl)
+            )
+          ),
+          e("tfoot",null,e("tr",{className:"tot"},
+            e("td",null,"Total"),
+            e("td",null,cOB||"—"),e("td",null,cInst||"—"),e("td",null,Fs(ALL_PAIRS,["dc","dn","dm","dt"])||"—"),
+            ageBH2.map(function(a,i){return e("td",{key:i,style:{color:"var(--green)",fontWeight:"bold"}},Cl(ALL_PAIRS,a.yrs)||"");}),
+            e("td",{style:{color:"var(--green)",fontWeight:"bold"}},cCl)
+          ))
+        )
+      ));
+  }
+
+  // ── YEARLY ──
+  if(id==="yearly"){
+    var yrB=[
+      {lbl:"Upto 1 year",yrs:YEARS.filter(function(y){return y>=selY-1;})},
+      {lbl:"More than 1 yr, upto 2 yrs",yrs:YEARS.filter(function(y){return y===selY-2;})},
+      {lbl:"More than 2 years",yrs:YEARS.filter(function(y){return y<=selY-2;})},
+      {lbl:"More than 5 years",yrs:YEARS.filter(function(y){return y<=selY-5;})},
+    ];
+    var sanc=N(gm("yr_sanc")),work=N(gm("yr_work"));
+    return e("div",null,
+      Hdr("Annexure IV — Annual Statement","Cases Instituted and Disposed — Subordinate Courts — ACJM Baghpat — "+selY),
+      Tbl(["Court","Cases Brought Forward (Crl)","Freshly Instituted (Crl)","Disposed (Crl)","Pending at End (Crl)"],[
+        {cells:["ACJM Baghpat",cOB,cInst||0,Fs(ALL_PAIRS,["dc","dn","dm","dt"])||0,cCl],grn:true},
+      ]),
+      Sec("Status of Cases — Age-wise Pending"),
+      Tbl(["Nature of Cases"].concat(yrB.map(function(b){return b.lbl;})),[
+        {cells:["Civil Cases"].concat(yrB.map(function(){return "—"}))},
+        {cells:["Criminal Cases"].concat(yrB.map(function(b){return Cl(ALL_PAIRS,b.yrs)||0;})),grn:true},
+        {cells:["Total"].concat(yrB.map(function(b){return Cl(ALL_PAIRS,b.yrs)||0;})),tot:true},
+      ]),
+      Sec("Strength of Judges as on "+dStr(selM,selY)),
+      e("div",{style:{display:"flex",gap:"16px",flexWrap:"wrap",padding:"12px",background:"var(--card)",borderRadius:"6px",marginBottom:"8px"}},
+        [["yr_sanc","Sanctioned Strength"],["yr_work","Working Strength"]].map(function(x){
+          return e("div",{key:x[0],style:{textAlign:"center"}},e("div",{style:{fontSize:"9px",color:"var(--dim)",marginBottom:"3px"}},x[1]),FiI(x[0]));
+        }),
+        e("div",{style:{textAlign:"center"}},e("div",{style:{fontSize:"9px",color:"var(--dim)",marginBottom:"3px"}},"Vacancy"),
+          e("div",{style:{fontSize:"18px",fontWeight:"bold",color:sanc-work>0?"var(--red)":"var(--green)"}},sanc>0?sanc-work:"—"))
+      ),
+      Sec("Bifurcation of Pending Cases"),
+      Tbl(["Category","Criminal Pending"],[
+        {cells:["Police Challan Cases",Cl(ALL_PAIRS.filter(function(p_){return p_[0]==="wss"||p_[0]==="sms";}))||0]},
+        {cells:["Complaint Cases",Cl(ALL_PAIRS.filter(function(p_){return p_[0]==="wsc"||p_[0]==="smc";}))||0]},
+        {cells:["Traffic + Petty Cases",Cl(P_PETTY)||0]},
+        {cells:["Final Reports",Cl(P_FR)||0]},
+        {cells:["Criminal Misc Cases",Cl(P_MISC)||0]},
+        {cells:["TOTAL",cCl],tot:true},
+      ])
+    );
+  }
+
+  return e("div",{style:{color:"var(--dim)",padding:"20px",textAlign:"center"}},"Statement not found.");
+}
+
+// ═══════════════════════════
+// XLSX EXPORT
+// ═══════════════════════════
+function doXLSX(all,mk,prevMk,selM,selY){
+  try{
+    var ents=getEnt(all,mk), pents=getEnt(all,prevMk);
+    var ml2=mth(selM,selY);
+    var F=function(pairs,fid,yrs){return sumF_(ents,pents,pairs,fid,yrs);};
+    var Fs=function(pairs,fids,yrs){return sumFs_(ents,pents,pairs,fids,yrs);};
+    var Cl=function(pairs,yrs){return Cl_(ents,pents,pairs,yrs);};
+    var ClY=function(pairs,yr){return ClY_(ents,pents,pairs,yr);};
+    var gm=function(k,df){return getMan(all,mk,k,df);};
+    var actYrs=YEARS.filter(function(y){return ents.some(function(en){return en.yr===y;});});
+    var cOB=F(ALL_PAIRS,"ob"),cI=F(ALL_PAIRS,"inst")+F(ALL_PAIRS,"itrf");
+    var cD=Fs(ALL_PAIRS,["dc","dn","dm"]),cDT=F(ALL_PAIRS,"dt"),cCl=Cl(ALL_PAIRS);
+    var wb=XLSX.utils.book_new();
+    function addS(n,rows){var ws=XLSX.utils.aoa_to_sheet(rows);try{XLSX.utils.book_append_sheet(wb,ws,n.substring(0,31));}catch(x){}}
+
+    addS("Information",[["Information regarding Civil and Criminal Cases — Court of ACJM, Baghpat — "+ml2],[],
+      ["Nature","Opening","Institution","Disposal(Actual)","Disposal(Transfer)","Closing"],
+      ["Criminal",cOB,cI,cD,cDT,cCl],["Civil","—","—","—","—","—"],["Total",cOB,cI,cD,cDT,cCl]]);
+
+    var y5=YEARS.filter(function(y){return y<=selY-5;});
+    addS("Pendency Arrears",[["Pendency/Arrears — Court of ACJM, Baghpat — "+ml2],[],
+      ["Category","Opening(Crl)","Institution","Actual Disposal","Disp.Transfer","Closing","5yr+ Pendency"],
+      ["Pendency (Excl. Pre Trial)",F(P_NONFR,"ob"),F(P_NONFR,"inst")+F(P_NONFR,"itrf"),Fs(P_NONFR,["dc","dn","dm"]),F(P_NONFR,"dt"),Cl(P_NONFR),F(P_NONFR,"ob",y5)],
+      ["Pre Trial (FR)",F(P_FR,"ob"),F(P_FR,"inst")+F(P_FR,"itrf"),Fs(P_FR,["dc","dn","dm"]),F(P_FR,"dt"),Cl(P_FR),F(P_FR,"ob",y5)],
+      ["Total",cOB,cI,cD,cDT,cCl,F(P_NONFR,"ob",y5)+F(P_FR,"ob",y5)]]);
+
+    addS("Breakup",[["Nature-wise Pendency — ACJM Baghpat — "+dStr(selM,selY)],[],
+      ["S.N.","Nature of Cases"].concat(actYrs).concat(["Total"])].concat(
+      BU_ROWS.map(function(r,i){return [i+1,r.lbl].concat(actYrs.map(function(yr){return ClY(r.pairs,yr);})).concat([Cl(r.pairs)]);})).concat(
+      [["","Total"].concat(actYrs.map(function(yr){return ClY(ALL_PAIRS,yr);})).concat([cCl])]));
+
+    addS("Contested NC",[["Contested/NC — "+ml2],[],["Type"].concat(actYrs).concat(["Total"]),
+      ["Balance at beginning"].concat(actYrs.map(function(yr){return sumF_(ents,pents,ALL_PAIRS,"ob",[yr]);})).concat([cOB]),
+      ["Institution Direct"].concat(actYrs.map(function(yr){return sumF_(ents,pents,ALL_PAIRS,"inst",[yr]);})).concat([F(ALL_PAIRS,"inst")]),
+      ["Institution Transfer"].concat(actYrs.map(function(yr){return sumF_(ents,pents,ALL_PAIRS,"itrf",[yr]);})).concat([F(ALL_PAIRS,"itrf")]),
+      ["Disposal Contested"].concat(actYrs.map(function(yr){return sumF_(ents,pents,ALL_PAIRS,"dc",[yr]);})).concat([F(ALL_PAIRS,"dc")]),
+      ["Disposal Non-Contested"].concat(actYrs.map(function(yr){return sumF_(ents,pents,ALL_PAIRS,"dn",[yr]);})).concat([F(ALL_PAIRS,"dn")]),
+      ["Disposal Committal"].concat(actYrs.map(function(yr){return sumF_(ents,pents,ALL_PAIRS,"dm",[yr]);})).concat([F(ALL_PAIRS,"dm")]),
+      ["Disposal Transfer"].concat(actYrs.map(function(yr){return sumF_(ents,pents,ALL_PAIRS,"dt",[yr]);})).concat([F(ALL_PAIRS,"dt")]),
+      ["Closing Balance"].concat(actYrs.map(function(yr){return ClY(ALL_PAIRS,yr);})).concat([cCl])]);
+
+    addS("Actual Disposal",[["Year-wise Actual Disposal — ACJM Baghpat — "+ml2],[],
+      ["Nature"].concat(actYrs).concat(["Total"]),
+      ["Civil Cases Disposal"].concat(actYrs.map(function(){return "—"})).concat(["—"]),
+      ["Criminal Cases Disposal"].concat(actYrs.map(function(yr){return Fs(ALL_PAIRS,["dc","dn","dm","dt"],[yr]);})).concat([Fs(ALL_PAIRS,["dc","dn","dm","dt"])])]);
+
+    addS("Apar DJ",[["ANNEXURE-I — Old Cases — "+ml2.toUpperCase()],[],
+      ["Slab","Period","Pendency(Crl)","Inst.Transfer","Actual Disposal","Disp.Transfer","Closing"]].concat(
+      APAR_SLABS.map(function(s){return [s.lbl,s.yr,F(P_TRIAL,"ob",s.yrs),F(P_TRIAL,"itrf",s.yrs),Fs(P_TRIAL,["dc","dn","dm"],s.yrs),F(P_TRIAL,"dt",s.yrs),Cl(P_TRIAL,s.yrs)];})));
+
+    var mpP=[ ["wss","mpmla"]],shP=[["wss","crape"],["wss","sh"]];
+    addS("Rape MP MLA",[["Status of Cases — "+ml2.toUpperCase()],[],
+      ["Category","Opening","Institution","Inst.Transfer","Disposal","Disp.Transfer","Closing"],
+      ["MP/MLA (ACJM)",F(mpP,"ob"),F(mpP,"inst"),F(mpP,"itrf"),Fs(mpP,["dc","dn","dm"]),F(mpP,"dt"),Cl(mpP)],
+      ["Rape/SH (ACJM)",F(shP,"ob"),F(shP,"inst"),F(shP,"itrf"),Fs(shP,["dc","dn","dm"]),F(shP,"dt"),Cl(shP)],
+      ["Sessions MP/MLA",N(gm("ses_mp_ob")),N(gm("ses_mp_id")),N(gm("ses_mp_it")),N(gm("ses_mp_d")),N(gm("ses_mp_dt")),N(gm("ses_mp_ob"))+N(gm("ses_mp_id"))+N(gm("ses_mp_it"))-N(gm("ses_mp_d"))-N(gm("ses_mp_dt"))],
+      ["Sessions POCSO",N(gm("ses_pocso_ob")),N(gm("ses_pocso_id")),N(gm("ses_pocso_it")),N(gm("ses_pocso_d")),N(gm("ses_pocso_dt")),N(gm("ses_pocso_ob"))+N(gm("ses_pocso_id"))+N(gm("ses_pocso_it"))-N(gm("ses_pocso_d"))-N(gm("ses_pocso_dt"))]]);
+
+    var ndP=[["wss","ndps"]];
+    var ndYrs=actYrs.filter(function(y){return y>=2001;});
+    addS("NDPS",[["NDPS — Quarter ending "+dStr(selM,selY)],[],
+      [""].concat(ndYrs).concat(["Total"]),
+      ["Opening"].concat(ndYrs.map(function(yr){return F(ndP,"ob",[yr]);})).concat([F(ndP,"ob")]),
+      ["Institution"].concat(ndYrs.map(function(yr){return F(ndP,"inst",[yr])+F(ndP,"itrf",[yr]);})).concat([F(ndP,"inst")+F(ndP,"itrf")]),
+      ["Disposal"].concat(ndYrs.map(function(yr){return Fs(ndP,["dc","dn","dm","dt"],[yr]);})).concat([Fs(ndP,["dc","dn","dm","dt"])]),
+      ["Closing"].concat(ndYrs.map(function(yr){return Cl(ndP,[yr]);})).concat([Cl(ndP)])]);
+
+    var pOB=F(P_PETTY,"ob"),pI=F(P_PETTY,"inst")+F(P_PETTY,"itrf"),pD=Fs(P_PETTY,["dc","dn"]);
+    var mvP2=[["pet","mv"]],niP=[["smc","ni"]];
+    addS("Petty NI",[["Monthly Progress Report — Petty / NI — "+ml2],[],
+      ["Nature","Opening","Institution","Disposal","Closing"],
+      ["Traffic Challan (MV Act)",F(mvP2,"ob"),F(mvP2,"inst")+F(mvP2,"itrf"),Fs(mvP2,["dc","dn"]),Cl(mvP2)],
+      ["Municipal Challan",N(gm("mun_ob")),N(gm("mun_i")),N(gm("mun_d")),N(gm("mun_ob"))+N(gm("mun_i"))-N(gm("mun_d"))],
+      ["NI Act u/s 138",F(niP,"ob"),F(niP,"inst")+F(niP,"itrf"),Fs(niP,["dc","dn"]),Cl(niP)]]);
+
+    var tCl=Cl(ALL_PAIRS),pCl=Cl(P_PETTY);
+    addS("Petty Non-Petty",[["Proforma A — "+dStr(selM,selY)],[],
+      ["Court","Total Criminal Pending","Petty Pending","Non-Petty Pending"],["ACJM Baghpat",tCl,pCl,tCl-pCl]]);
+
+    addS("Monthly Petty",[["Proforma C — "+ml2],[],
+      ["Pendency at Beginning","Institution","Disposal","Fine Realized (Rs.)","Closing"],
+      [pOB,pI,pD,N(gm("petty_fine")),pOB+pI-pD]]);
+
+    addS("Proforma A+C Summons",[["Proforma A,C & Summons — ACJM Baghpat — "+ml2],[],
+      ["Proforma A — Petty / Non-Petty"],["Court","Total Criminal","Petty","Non-Petty"],["ACJM Baghpat",tCl,pCl,tCl-pCl],
+      [],["Proforma C — Monthly Petty"],
+      ["Opening","Institution","Inst.Transfer","Disposal","Disp.Transfer","Fine (Rs.)","Closing"],
+      [pOB,F(P_PETTY,"inst"),F(P_PETTY,"itrf"),Fs(P_PETTY,["dc","dn"]),F(P_PETTY,"dt"),N(gm("petty_fine")),pOB+pI-pD],
+      [],["Summons Statement"],
+      ["Sent",N(gm("smn_sent"))],["Served",N(gm("smn_serv"))],["Returned",N(gm("smn_ret"))],["Under Process",N(gm("smn_proc"))]]);
+
+    var y7=YEARS.filter(function(y){return y<=selY-7;});
+    addS("7 Year Old",[["Seven Year Old Cases — "+ml2],[],
+      ["Type","Opening","Institution","Disposal","Closing"],
+      ["Criminal Cases",F(ALL_PAIRS,"ob",y7),F(ALL_PAIRS,"inst",y7)+F(ALL_PAIRS,"itrf",y7),Fs(ALL_PAIRS,["dc","dn","dm"],y7),Cl(ALL_PAIRS,y7)],
+      ["Criminal Misc",F(P_MISC,"ob",y7),F(P_MISC,"inst",y7)+F(P_MISC,"itrf",y7),Fs(P_MISC,["dc","dn","dm"],y7),Cl(P_MISC,y7)],
+      ["Civil","—","—","—","—"]]);
+
+    addS("NI Breakup",[["NI Act (138) Breakup — "+ml2],[],
+      ["Court","Opening","Institution","Disposal","Closing"],
+      ["ACJM Baghpat",F(niP,"ob"),F(niP,"inst")+F(niP,"itrf"),Fs(niP,["dc","dn"]),Cl(niP)],[],
+      ["Stage-wise"],["Appearance",N(gm("ni_app"))],["Hearing",N(gm("ni_hear"))],["Final",N(gm("ni_fin"))],[],
+      ["Year-wise Closing"],["Year"].concat(actYrs.filter(function(y){return y>=2010;})).concat(["Total"]),
+      ["Closing"].concat(actYrs.filter(function(y){return y>=2010;}).map(function(yr){return Cl(niP,[yr]);})).concat([Cl(niP)])]);
+
+    addS("Mission Mode",[["Mission Mode Bimonthly — "+ml2],[],
+      ["Sr.No.","Type of Cases","Pendency"],
+      ["1","Session Trial (manual)",N(gm("mm_ses"))],
+      ["2","Warrant Trial",Cl(ALL_PAIRS.filter(function(p_){return p_[0]==="wss"||p_[0]==="wsc";}))],
+      ["3","Arms Act",Cl([["wss","arms"]])],
+      ["5","NI Act 138",Cl([["smc","ni"]])],
+      ["6","Summon Trial",Cl(ALL_PAIRS.filter(function(p_){return p_[0]==="sms"||p_[0]==="smc";}))],
+      ["8","Traffic Challan",Cl([["pet","mv"]])],
+      ["12","Excise Act",Cl([["wss","ex"]])],
+      ["19","NDPS Act",Cl([["wss","ndps"]])]]);
+
+    addS("Quarterly Inst Dispo",[["Quarterly Inst/Dispo — "+ml2],[],
+      ["Quarter","Cases Brought Forward","Freshly Instituted","Disposed","Pending at End"],
+      [ml2,cOB,cI,Fs(ALL_PAIRS,["dc","dn","dm","dt"]),cCl]]);
+
+    addS("Yearly Annexure IV",[["Annexure IV — Annual Statement — "+selY],[],
+      ["Court","Cases Brought Forward","Freshly Instituted","Disposed","Pending at End"],
+      ["ACJM Baghpat",cOB,cI,Fs(ALL_PAIRS,["dc","dn","dm","dt"]),cCl],[],
+      ["Age-wise Pendency"],["Nature","Upto 1yr","1-2 yrs","Over 2 yrs","Over 5 yrs"],
+      ["Criminal",Cl(ALL_PAIRS,YEARS.filter(function(y){return y>=selY-1;})),
+        Cl(ALL_PAIRS,[selY-2]),Cl(ALL_PAIRS,YEARS.filter(function(y){return y<=selY-2;})),
+        Cl(ALL_PAIRS,YEARS.filter(function(y){return y<=selY-5;}))],[],
+      ["Strength of Judges"],["Sanctioned",N(gm("yr_sanc"))],["Working",N(gm("yr_work"))],["Vacancy",N(gm("yr_sanc"))-N(gm("yr_work"))]]);
+
+    XLSX.writeFile(wb,"CourtStatements_"+MONTHS[selM]+selY+"_ACJM.xlsx");
+  }catch(ex){alert("Export error: "+ex.message);}
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(e(App,null));
+</script>
+</body>
+</html>
