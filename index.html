@@ -154,7 +154,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       <div class="entryHead">
         <label style="font-size:11px;color:var(--mut)">Statement</label>
         <select id="stmtSel"></select>
-        <button class="ok" id="genBtn">↻ Generate from data entry</button>
+        <button class="ok" id="genBtn">↻ Generate</button>
+        <button class="ghost" id="carryInfoBtn" title="Har opening pichle month ki closing se aa rahi hai">↩️ Opening ← last month closing</button>
         <button class="ghost" id="editToggle">✏️ Edit mode: OFF</button>
         <button class="warn" id="clearOv" title="Is month ke is statement ki corrections hatao">⟲ Reset corrections</button>
         <span class="meta" id="prevMeta" style="margin-left:0"></span>
@@ -662,7 +663,8 @@ document.getElementById('exportBtn').addEventListener('click',async()=>{try{toas
 document.getElementById('backupBtn').addEventListener('click',backupJSON);
 document.getElementById('restoreBtn').addEventListener('click',()=>document.getElementById('restoreFile').click());
 document.getElementById('restoreFile').addEventListener('change',e=>{if(e.target.files[0])restoreJSON(e.target.files[0]);e.target.value='';});
-document.getElementById('genBtn').addEventListener('click',()=>{cachedWB=null;renderPreview();toast('Generated from data entry');});
+document.getElementById('genBtn').addEventListener('click',()=>{cachedWB=null;renderPreview();toast('Generated — opening pichle month closing se');});
+document.getElementById('carryInfoBtn').addEventListener('click',()=>{cachedWB=null;renderPreview();const pm=prevMonthStr(CURMONTH);toast(monthHasData(pm)?('Opening = '+pm+' ki closing'):('Pehla month — yahan closing bharo (baseline)'));});
 document.getElementById('editToggle').addEventListener('click',e=>{editMode=!editMode;e.target.textContent='✏️ Edit mode: '+(editMode?'ON':'OFF');e.target.classList.toggle('on',editMode);renderPreview();});
 document.getElementById('clearOv').addEventListener('click',()=>{const n=stmtSel.value;if(OV[n]){delete OV[n];saveOV(CURMONTH,OV);cachedWB=null;renderPreview();toast('Corrections reset for '+n.trim());}else toast('No corrections here');});
 stmtSel.addEventListener('change',()=>{cachedWB=cachedWB;renderPreview();});
