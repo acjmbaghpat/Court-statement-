@@ -157,8 +157,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         <label style="font-size:11px;color:var(--mut)">Statement</label>
         <select id="stmtSel"></select>
         <button class="ok" id="genBtn">↻ Generate</button>
-        <button class="purple" id="importBtn">📤 Import statement (Excel)</button>
-        <input type="file" id="importFile" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+        <button class="purple" id="importBtn">📤 Import statement</button>
+        <input type="file" id="importFile" accept=".xlsx,.xls,.ods,.csv,.docx">
         <button class="ghost" id="carryInfoBtn" title="Har opening pichle month ki closing se aa rahi hai">↩️ Opening ← last month closing</button>
         <button class="ghost" id="editToggle">✏️ Edit mode: OFF</button>
         <button class="warn" id="clearOv" title="Is month ke is statement ki corrections hatao">⟲ Reset corrections</button>
@@ -688,46 +688,46 @@ document.getElementById('backupBtn').addEventListener('click',backupJSON);
 document.getElementById('restoreBtn').addEventListener('click',()=>document.getElementById('restoreFile').click());
 document.getElementById('restoreFile').addEventListener('change',e=>{if(e.target.files[0])restoreJSON(e.target.files[0]);e.target.value='';});
 document.getElementById('genBtn').addEventListener('click',()=>{cachedWB=null;renderPreview();toast('Generated — opening pichle month closing se');});
-// ===== Import statement(s) from an Excel file into CURRENT month as overrides =====
-async function importExcel(file){
+// ===== Import statement(s) from Excel / ODS / xls / csv / Word into CURRENT month as overrides =====
+const _libs={};
+function loadScript(url){ if(_libs[url])return _libs[url]; _libs[url]=new Promise((res,rej)=>{const s=document.createElement('script');s.src=url;s.onload=()=>res();s.onerror=()=>rej(new Error('Library load failed (net?) : '+url));document.head.appendChild(s);}); return _libs[url]; }
+async function importFile(file){
+  const fname=(file.name||'').toLowerCase();
   try{
-    toast('Reading Excel…');
     const buf=await file.arrayBuffer();
-    const iwb=new ExcelJS.Workbook();
-    await iwb.xlsx.load(buf);
-    const sheetNames=iwb.worksheets.map(w=>w.name);
-    const known=SHEETS.map(s=>s.trim().toLowerCase());
-    let imported=0,sheetsDone=[];
-    const importSheet=(iws,targetName)=>{
-      if(!OV[targetName])OV[targetName]={};
-      let n=0;
-      iws.eachRow({includeEmpty:false},(row,r)=>{
-        row.eachCell({includeEmpty:false},(cell,c)=>{
-          let v=cell.value;
-          if(v&&typeof v==='object'){ if(v.result!=null)v=v.result; else if(v.formula!=null) return; else return; }
-          if(typeof v==='number'){ const addr=colL(c)+r; OV[targetName][addr]=v; n++; }
-        });
-      });
-      if(n>0){imported+=n;sheetsDone.push(targetName.trim()+' ('+n+')');}
-    };
-    // match by sheet name; else single sheet -> currently selected statement
-    let matchedAny=false;
-    iwb.worksheets.forEach(iws=>{
-      const idx=known.indexOf(iws.name.trim().toLowerCase());
-      if(idx>=0){ matchedAny=true; importSheet(iws,SHEETS[idx]); }
-    });
-    if(!matchedAny){
-      // no matching names: import first sheet into the currently selected statement
-      importSheet(iwb.worksheets[0], stmtSel.value);
-    }
-    saveOV(CURMONTH,OV);
-    cachedWB=null;renderPreview();refreshMeta();
-    toast(imported?('Imported '+imported+' values → '+sheetsDone.join(', ')+' (month '+CURMONTH+')'):'Koi numeric value nahi mili',!imported);
-  }catch(e){ console.error(e); toast('Import error: '+e.message,true); }
+    if(/\.(xlsx|xls|ods|csv)$/.test(fname)){
+      toast('Reading spreadsheet…');
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+      const wb=XLSX.read(new Uint8Array(buf),{type:'array'});
+      const known=SHEETS.map(s=>s.trim().toLowerCase());
+      let imported=0,done=[],matched=false;
+      const impSheet=(ws,target)=>{const ref=ws['!ref'];if(!ref)return;const rg=XLSX.utils.decode_range(ref);if(!OV[target])OV[target]={};let n=0;
+        for(let r=rg.s.r;r<=rg.e.r;r++)for(let c=rg.s.c;c<=rg.e.c;c++){const addr=XLSX.utils.encode_cell({r:r,c:c});const cell=ws[addr];if(cell&&typeof cell.v==='number'){OV[target][addr]=cell.v;n++;}}
+        if(n){imported+=n;done.push(target.trim()+' ('+n+')');}};
+      wb.SheetNames.forEach(sn=>{const idx=known.indexOf(sn.trim().toLowerCase());if(idx>=0){matched=true;impSheet(wb.Sheets[sn],SHEETS[idx]);}});
+      if(!matched)impSheet(wb.Sheets[wb.SheetNames[0]],stmtSel.value);
+      saveOV(CURMONTH,OV);cachedWB=null;renderPreview();refreshMeta();
+      toast(imported?('Imported '+imported+' values → '+done.join(', ')+' ('+CURMONTH+')'):'Koi numeric value nahi mili',!imported);
+    } else if(/\.docx$/.test(fname)){
+      toast('Reading Word…');
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js');
+      const res=await mammoth.convertToHtml({arrayBuffer:buf});
+      const doc=new DOMParser().parseFromString(res.value,'text/html');
+      const tables=[...doc.querySelectorAll('table')];
+      if(!tables.length){toast('Word file mein koi table nahi mili',true);return;}
+      tables.sort((a,b)=>b.querySelectorAll('td,th').length-a.querySelectorAll('td,th').length);
+      const tbl=tables[0],target=stmtSel.value;if(!OV[target])OV[target]={};let n=0;
+      [...tbl.querySelectorAll('tr')].forEach((tr,i)=>{[...tr.children].forEach((td,j)=>{const txt=(td.textContent||'').replace(/,/g,'').trim();if(txt!==''&&!isNaN(Number(txt))){OV[target][colL(j+1)+(i+1)]=Number(txt);n++;}});});
+      saveOV(CURMONTH,OV);cachedWB=null;renderPreview();refreshMeta();
+      toast(n?('Word import: '+n+' values → '+target.trim()+' (positions approx — orange cells verify karein)'):'Table mein number nahi mile',!n);
+    } else if(/\.odt$/.test(fname)){
+      toast('ODT (Word-type) abhi direct support nahi — .docx ya .ods mein save karke upload karein',true);
+    } else { toast('Format support nahi: use .xlsx / .xls / .ods / .csv / .docx',true); }
+  }catch(e){console.error(e);toast('Import error: '+e.message,true);}
 }
 document.getElementById('carryInfoBtn').addEventListener('click',()=>{cachedWB=null;renderPreview();const pm=prevMonthStr(CURMONTH);toast(monthHasData(pm)?('Opening = '+pm+' ki closing'):('Pehla month — yahan closing bharo (baseline)'));});
 document.getElementById('importBtn').addEventListener('click',()=>document.getElementById('importFile').click());
-document.getElementById('importFile').addEventListener('change',e=>{if(e.target.files[0])importExcel(e.target.files[0]);e.target.value='';});
+document.getElementById('importFile').addEventListener('change',e=>{if(e.target.files[0])importFile(e.target.files[0]);e.target.value='';});
 document.getElementById('editToggle').addEventListener('click',e=>{editMode=!editMode;e.target.textContent='✏️ Edit mode: '+(editMode?'ON':'OFF');e.target.classList.toggle('on',editMode);renderPreview();});
 document.getElementById('clearOv').addEventListener('click',()=>{const n=stmtSel.value;if(OV[n]){delete OV[n];saveOV(CURMONTH,OV);cachedWB=null;renderPreview();toast('Corrections reset for '+n.trim());}else toast('No corrections here');});
 stmtSel.addEventListener('change',()=>{cachedWB=cachedWB;renderPreview();});
