@@ -101,6 +101,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .prevWrap td.lbl{text-align:left;background:#eef2f8;font-weight:600;color:#1a2a44}
   .prevWrap td.num{font-variant-numeric:tabular-nums;background:#fff7d6}
   .prevWrap td.frm{font-variant-numeric:tabular-nums;background:#e7f0ff;color:#0d3a8a;font-weight:600}
+  .prevWrap td.unfetched{background:#ffd9a8;color:#7a3e00}
   .prevWrap input{width:60px;border:1px solid #4a90e2;border-radius:4px;padding:3px;text-align:center;font-size:12px;background:#fffceb}
   .prevWrap input:focus{outline:2px solid #2563eb}
   .prevInfo{padding:8px 18px;font-size:11.5px;color:var(--mut);flex-shrink:0;display:flex;gap:14px;flex-wrap:wrap}
@@ -148,6 +149,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         <span class="pill"><span class="swatch" style="background:#16a34a"></span>Net = Inst − Disp</span>
         <span style="color:#fbbf24">Opening yahan nahi — har statement mein pichle month se carry hota hai</span>
       </div>
+      <div id="tallyBar" style="margin:0 18px 8px;padding:8px 12px;background:#10233f;border:1px solid var(--line);border-radius:10px;font-size:12px;display:flex;flex-wrap:wrap;gap:14px;align-items:center"></div>
       <div class="tableWrap"><table class="grid" id="entryTable"></table></div>
     </div>
     <div class="pane" id="pane-preview">
@@ -155,6 +157,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         <label style="font-size:11px;color:var(--mut)">Statement</label>
         <select id="stmtSel"></select>
         <button class="ok" id="genBtn">↻ Generate</button>
+        <button class="purple" id="importBtn">📤 Import statement (Excel)</button>
+        <input type="file" id="importFile" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
         <button class="ghost" id="carryInfoBtn" title="Har opening pichle month ki closing se aa rahi hai">↩️ Opening ← last month closing</button>
         <button class="ghost" id="editToggle">✏️ Edit mode: OFF</button>
         <button class="warn" id="clearOv" title="Is month ke is statement ki corrections hatao">⟲ Reset corrections</button>
@@ -267,6 +271,16 @@ function mDISP(ms,cats){return mDD(ms,cats)+mDT(ms,cats);}
 // ───────── DATA ENTRY UI ─────────
 const catSel=document.getElementById('cat');
 CATEGORIES.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.group+'  ›  '+c.name;catSel.appendChild(o);});
+function updateTally(){
+  const t=document.getElementById('tallyBar');if(!t)return;
+  let iD=0,iT=0,dc=0,dnc=0,dt=0;
+  CID.forEach(c=>YEARS.forEach(y=>{const o=DATA[c][y];iD+=o.ia||0;iT+=o.it||0;dc+=o.dc||0;dnc+=o.dnc||0;dt+=o.dt||0;}));
+  const inst=iD+iT,disp=dc+dnc+dt,net=inst-disp;
+  const chip=(lbl,val,col)=>'<span style="display:inline-flex;gap:5px;align-items:center"><b style="color:'+col+'">'+val+'</b><span style="color:#8ea0bf">'+lbl+'</span></span>';
+  t.innerHTML='<span style="color:#cfe0ff;font-weight:700">Tally (is month — sab category/saal):</span>'+
+    chip('Inst-D',iD,'#4ade80')+chip('Inst-T',iT,'#2dd4bf')+chip('Disp-Cont',dc,'#f472b6')+chip('Disp-NCont',dnc,'#a78bfa')+chip('Disp-Trf',dt,'#fbbf24')+
+    '<span style="border-left:1px solid #2c3a55;padding-left:12px">'+chip('Total Inst',inst,'#86efac')+chip('Total Disp',disp,'#fca5a5')+chip('Net',net,'#93c5fd')+'</span>';
+}
 function renderTable(){
   const cid=CATEGORIES[curCatIdx].id;catSel.value=cid;
   document.getElementById('catProgress').textContent='Category '+(curCatIdx+1)+' / '+CATEGORIES.length;
@@ -278,7 +292,8 @@ function renderTable(){
   h+='</tbody>';t.innerHTML=h;
   t.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',e=>{
     const c=e.target.dataset.c,y=+e.target.dataset.y,f=e.target.dataset.f;
-    DATA[c][y][f]=Number(e.target.value)||0;document.getElementById('cb_'+y).textContent=clo(DATA,c,y);refreshMeta();}));
+    DATA[c][y][f]=Number(e.target.value)||0;document.getElementById('cb_'+y).textContent=clo(DATA,c,y);refreshMeta();updateTally();}));
+  updateTally();
 }
 function refreshMeta(){const saved=loadMonth(CURMONTH);let nz=0;CID.forEach(c=>YEARS.forEach(y=>FIELDS.forEach(f=>{if(DATA[c][y][f])nz++;})));
   document.getElementById('metaInfo').innerHTML=CURMONTH+' · '+(saved?'<span style="color:#86efac">saved</span>':'<span style="color:#fbbf24">unsaved</span>')+' · '+nz+' values<br>'+allMonths().length+' months stored';}
@@ -325,7 +340,8 @@ async function buildMonth(month){
   const pm=prevMonthStr(month);
   const prevWB= monthHasData(pm) ? await buildMonth(pm) : null;
   const LM=(sheet,cell)=>{ if(!prevWB)return 0; const ws=prevWB.getWorksheet(sheet); if(!ws)return 0; return evalOn(ws,cell); };
-  const setC=(ws,a,val)=>{ ws.getCell(a).value=(val==null?0:val); };
+  const filled={}; wb._filled=filled;
+  const setC=(ws,a,val)=>{ ws.getCell(a).value=(val==null?0:val); (filled[ws.name]||(filled[ws.name]=new Set())).add(a); };
   const Y=+month.split('-')[0];
   const cap5=Y-6;       // "more than 5 years old" => filed <= Y-6 (2020 for 2026)
   const cap7=Y-7;       // "more than 7 years old" => filed <= Y-7 (2019 for 2026)
@@ -475,6 +491,9 @@ async function buildMonth(month){
   const qm=quarterMonths(month),hm=halfMonths(month),ym=yearMonths(month);
   const qData=qm.months.map(monthData),hData=hm.months.map(monthData),yData=ym.months.map(monthData);
   async function periodOpen(firstMonth,sheet,cell){const before=prevMonthStr(firstMonth);if(!monthHasData(before))return 0;const w=await buildMonth(before);const ws=w.getWorksheet(sheet);return ws?evalOn(ws,cell):0;}
+  // monthly institution/disposal read from each month's BUILT statement (so uploaded-statement months also count)
+  async function stmtMove(monthsArr){let inst=0,disp=0;for(const mk of monthsArr){if(!monthHasData(mk))continue;const w=await buildMonth(mk);const ws=w.getWorksheet('pendency arrears');if(!ws)continue;inst+=evalOn(ws,'F5')+evalOn(ws,'I5')+evalOn(ws,'F6')+evalOn(ws,'I6');disp+=evalOn(ws,'L5')+evalOn(ws,'O5')+evalOn(ws,'L6')+evalOn(ws,'O6');}return {inst,disp};}
+  async function stmtMoveSheet(monthsArr,sheet,instCell,dispCell){let inst=0,disp=0;for(const mk of monthsArr){if(!monthHasData(mk))continue;const w=await buildMonth(mk);const ws=w.getWorksheet(sheet);if(!ws)continue;inst+=evalOn(ws,instCell);disp+=evalOn(ws,dispCell);}return {inst,disp};}
 
   // quarter SH
   {const ws=wb.getWorksheet('quarter SH');if(ws){
@@ -484,15 +503,15 @@ async function buildMonth(month){
       colYearPairs(HDR.quarterSH).forEach(p=>{const cell=colL(p.col)+r;const o=LM('quarter SH',cell);setC(ws,cell,o+msIN(qData,cats,p.year)-msDISP(qData,cats,p.year));});};
     await put(6,G.SH);await put(7,G.COMMIT_RAPE);}}
 
-  // quarterly inst dispo
+  // quarterly inst dispo (inst/disp from built monthly statements => works for uploaded months)
   {const ws=wb.getWorksheet('quarterly inst dispo');if(ws){
     const bf=await periodOpen(qm.first,'pendency arrears','R5')+await periodOpen(qm.first,'pendency arrears','R6');
-    const inst=mIN(qData,G.ALL),disp=mDISP(qData,G.ALL),pend=X.totalPend;
+    const mv=await stmtMove(qm.months);const inst=mv.inst,disp=mv.disp,pend=X.totalPend;
     setC(ws,'G7',bf);setC(ws,'H7',bf);setC(ws,'J7',inst);setC(ws,'K7',inst);setC(ws,'M7',disp);setC(ws,'N7',disp);setC(ws,'P7',pend);setC(ws,'Q7',pend);}}
 
-  // ni quarterly (<=2016 NI)
+  // ni quarterly (<=2016 NI) — disposal from each month's built NI breakup
   {const ws=wb.getWorksheet('ni quarterly');if(ws){
-    setC(ws,'L5',niSum(1993,2016));let dsp=0;qData.forEach(md=>{dsp+=rDISP(md,G.NI,1993,2016);});setC(ws,'M5',dsp);}}
+    setC(ws,'L5',niSum(1993,2016));const mv=await stmtMoveSheet(qm.months,'NI act breakup','D4','E4');setC(ws,'M5',mv.disp);}}
 
   // 7 yearl old (opening carries)
   {const ws=wb.getWorksheet('7 yearl old');if(ws){
@@ -529,7 +548,7 @@ async function buildMonth(month){
   // YEARLY
   {const ws=wb.getWorksheet('YEARLY');if(ws){
     const bf=await periodOpen(ym.first,'pendency arrears','R5')+await periodOpen(ym.first,'pendency arrears','R6');
-    const inst=mIN(yData,G.ALL),disp=mDISP(yData,G.ALL),pend=X.totalPend;
+    const mv=await stmtMove(ym.months);const inst=mv.inst,disp=mv.disp,pend=X.totalPend;
     setC(ws,'F6',bf);setC(ws,'G6',bf);setC(ws,'I6',inst);setC(ws,'J6',inst);setC(ws,'L6',disp);setC(ws,'M6',disp);setC(ws,'O6',pend);setC(ws,'P6',pend);
     setC(ws,'I14',bColSum(Y,Y));setC(ws,'J14',bColSum(Y-2,Y-1));setC(ws,'K14',bColSum(Y-5,Y-3));setC(ws,'L14',bColSum(1993,Y-6));}}
 
@@ -615,6 +634,11 @@ async function renderPreview(){
         const a=anchor[key],span=a?` colspan="${a.cs}" rowspan="${a.rs}"`:'';
         const isText=(typeof display==='string'&&display.replace(/[\s.\-/]/g,'').length>0&&!isNum);
         let cls=isFormula?'frm':(isNum?'num':(isText?'lbl':''));
+        // highlight cells app couldn't fetch: zero data cells not filled by app and not overridden
+        const fset=cachedWB&&cachedWB._filled&&cachedWB._filled[name];
+        const appFilled=fset&&fset.has(addr);
+        const ovHas=OV[name]&&OV[name][addr]!=null;
+        if(!isFormula&&!isText&&typeof raw==='number'&&raw===0&&!appFilled&&!ovHas) cls='unfetched';
         let inner;
         if(editMode&&!isText){const ev=(isNum?display:'');inner=`<input type="number" inputmode="numeric" data-s="${name}" data-a="${addr}" value="${ev}">`;}
         else inner=(display===''?'':display);
@@ -664,7 +688,46 @@ document.getElementById('backupBtn').addEventListener('click',backupJSON);
 document.getElementById('restoreBtn').addEventListener('click',()=>document.getElementById('restoreFile').click());
 document.getElementById('restoreFile').addEventListener('change',e=>{if(e.target.files[0])restoreJSON(e.target.files[0]);e.target.value='';});
 document.getElementById('genBtn').addEventListener('click',()=>{cachedWB=null;renderPreview();toast('Generated — opening pichle month closing se');});
+// ===== Import statement(s) from an Excel file into CURRENT month as overrides =====
+async function importExcel(file){
+  try{
+    toast('Reading Excel…');
+    const buf=await file.arrayBuffer();
+    const iwb=new ExcelJS.Workbook();
+    await iwb.xlsx.load(buf);
+    const sheetNames=iwb.worksheets.map(w=>w.name);
+    const known=SHEETS.map(s=>s.trim().toLowerCase());
+    let imported=0,sheetsDone=[];
+    const importSheet=(iws,targetName)=>{
+      if(!OV[targetName])OV[targetName]={};
+      let n=0;
+      iws.eachRow({includeEmpty:false},(row,r)=>{
+        row.eachCell({includeEmpty:false},(cell,c)=>{
+          let v=cell.value;
+          if(v&&typeof v==='object'){ if(v.result!=null)v=v.result; else if(v.formula!=null) return; else return; }
+          if(typeof v==='number'){ const addr=colL(c)+r; OV[targetName][addr]=v; n++; }
+        });
+      });
+      if(n>0){imported+=n;sheetsDone.push(targetName.trim()+' ('+n+')');}
+    };
+    // match by sheet name; else single sheet -> currently selected statement
+    let matchedAny=false;
+    iwb.worksheets.forEach(iws=>{
+      const idx=known.indexOf(iws.name.trim().toLowerCase());
+      if(idx>=0){ matchedAny=true; importSheet(iws,SHEETS[idx]); }
+    });
+    if(!matchedAny){
+      // no matching names: import first sheet into the currently selected statement
+      importSheet(iwb.worksheets[0], stmtSel.value);
+    }
+    saveOV(CURMONTH,OV);
+    cachedWB=null;renderPreview();refreshMeta();
+    toast(imported?('Imported '+imported+' values → '+sheetsDone.join(', ')+' (month '+CURMONTH+')'):'Koi numeric value nahi mili',!imported);
+  }catch(e){ console.error(e); toast('Import error: '+e.message,true); }
+}
 document.getElementById('carryInfoBtn').addEventListener('click',()=>{cachedWB=null;renderPreview();const pm=prevMonthStr(CURMONTH);toast(monthHasData(pm)?('Opening = '+pm+' ki closing'):('Pehla month — yahan closing bharo (baseline)'));});
+document.getElementById('importBtn').addEventListener('click',()=>document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change',e=>{if(e.target.files[0])importExcel(e.target.files[0]);e.target.value='';});
 document.getElementById('editToggle').addEventListener('click',e=>{editMode=!editMode;e.target.textContent='✏️ Edit mode: '+(editMode?'ON':'OFF');e.target.classList.toggle('on',editMode);renderPreview();});
 document.getElementById('clearOv').addEventListener('click',()=>{const n=stmtSel.value;if(OV[n]){delete OV[n];saveOV(CURMONTH,OV);cachedWB=null;renderPreview();toast('Corrections reset for '+n.trim());}else toast('No corrections here');});
 stmtSel.addEventListener('change',()=>{cachedWB=cachedWB;renderPreview();});
