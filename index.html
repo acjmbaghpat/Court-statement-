@@ -691,6 +691,9 @@ document.getElementById('genBtn').addEventListener('click',()=>{cachedWB=null;re
 // ===== Import statement(s) from Excel / ODS / xls / csv / Word into CURRENT month as overrides =====
 const _libs={};
 function loadScript(url){ if(_libs[url])return _libs[url]; _libs[url]=new Promise((res,rej)=>{const s=document.createElement('script');s.src=url;s.onload=()=>res();s.onerror=()=>rej(new Error('Library load failed (net?) : '+url));document.head.appendChild(s);}); return _libs[url]; }
+function mapGridToOverrides(grid,target){ if(!OV[target])OV[target]={}; let n=0;
+  grid.forEach((line,i)=>line.forEach((txt,j)=>{ const t=String(txt==null?'':txt).replace(/,/g,'').trim(); if(t!==''&&!isNaN(Number(t))){ OV[target][colL(j+1)+(i+1)]=Number(t); n++; } }));
+  return n; }
 async function importFile(file){
   const fname=(file.name||'').toLowerCase();
   try{
@@ -721,8 +724,31 @@ async function importFile(file){
       saveOV(CURMONTH,OV);cachedWB=null;renderPreview();refreshMeta();
       toast(n?('Word import: '+n+' values → '+target.trim()+' (positions approx — orange cells verify karein)'):'Table mein number nahi mile',!n);
     } else if(/\.odt$/.test(fname)){
-      toast('ODT (Word-type) abhi direct support nahi — .docx ya .ods mein save karke upload karein',true);
-    } else { toast('Format support nahi: use .xlsx / .xls / .ods / .csv / .docx',true); }
+      toast('Reading OpenDocument Text…');
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+      const zip=await JSZip.loadAsync(buf);
+      const f=zip.file('content.xml'); if(!f){toast('ODT content.xml nahi mila',true);return;}
+      const xml=await f.async('string');
+      const doc=new DOMParser().parseFromString(xml,'application/xml');
+      const tables=[...doc.getElementsByTagName('table:table')];
+      if(!tables.length){toast('ODT mein koi table nahi mili',true);return;}
+      let best=null,bestN=-1;tables.forEach(tb=>{const n=tb.getElementsByTagName('table:table-cell').length;if(n>bestN){bestN=n;best=tb;}});
+      const grid=[];
+      [...best.getElementsByTagName('table:table-row')].forEach(row=>{
+        let rrep=parseInt(row.getAttribute('table:number-rows-repeated')||'1')||1; if(rrep>1000)rrep=1;
+        for(let q=0;q<rrep;q++){const line=[];
+          [...row.children].forEach(c=>{ if(c.nodeName!=='table:table-cell'&&c.nodeName!=='table:covered-table-cell')return;
+            let crep=parseInt(c.getAttribute('table:number-columns-repeated')||'1')||1; if(crep>1000)crep=1;
+            const txt=(c.textContent||'').replace(/\s+/g,' ').trim();
+            for(let k=0;k<crep;k++)line.push(txt);});
+          grid.push(line);}
+      });
+      const n=mapGridToOverrides(grid,stmtSel.value);
+      saveOV(CURMONTH,OV);cachedWB=null;renderPreview();refreshMeta();
+      toast(n?('ODT import: '+n+' values → '+stmtSel.value.trim()+' (positions approx — orange cells verify karein)'):'Table mein number nahi mile',!n);
+    } else if(/\.doc$/.test(fname)){
+      toast('.doc (Word 97-2003) browser mein safely nahi padha ja sakta. LibreOffice mein kholein → File → Save As → .docx ya .ods → phir upload karein.',true);
+    } else { toast('Format support nahi: .xlsx / .xls / .ods / .csv / .docx / .odt',true); }
   }catch(e){console.error(e);toast('Import error: '+e.message,true);}
 }
 document.getElementById('carryInfoBtn').addEventListener('click',()=>{cachedWB=null;renderPreview();const pm=prevMonthStr(CURMONTH);toast(monthHasData(pm)?('Opening = '+pm+' ki closing'):('Pehla month — yahan closing bharo (baseline)'));});
