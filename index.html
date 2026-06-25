@@ -170,6 +170,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         <span><span style="display:inline-block;width:11px;height:11px;background:#eef2f8;border:1px solid #b9c2d0;vertical-align:-1px"></span> label</span>
         <span>Edit mode ON karke koi bhi cell correct/fill karein → yahi final.</span>
       </div>
+      <div id="importReport" style="display:none;margin:0 18px 8px;padding:8px 12px;background:#10233f;border:1px solid var(--line);border-radius:10px;font-size:11.5px;line-height:1.5"></div>
       <div class="prevWrap" id="prevWrap"><div style="padding:30px;color:#666">Select a statement…</div></div>
     </div>
   </div>
@@ -540,10 +541,11 @@ async function buildMonth(month){
       setC(ws,'B'+r,op);setC(ws,'C'+r,mIN(hData,cats));setC(ws,'D'+r,mDISP(hData,cats));};
     await put(6,G.HY_POLICE);await put(7,G.HY_COMP);await put(8,G.HY_TRAFFIC);await put(9,G.HY_EC37);await put(10,G.HY_OTHER);}}
 
-  // half yearly 2
+  // half yearly 2 (aggregate total) — inst/disp from built monthly statements => uploaded months count
   {const ws=wb.getWorksheet('half yearly 2 ');if(ws){
-    const op=await periodOpen(hm.first,'half yearly 2 ','B10');
-    setC(ws,'B10',op);setC(ws,'C10',mIN(hData,G.ALL));setC(ws,'D10',mDISP(hData,G.ALL));}}
+    const op=await periodOpen(hm.first,'pendency arrears','R5')+await periodOpen(hm.first,'pendency arrears','R6');
+    const mv=await stmtMove(hm.months);
+    setC(ws,'B10',op);setC(ws,'C10',mv.inst);setC(ws,'D10',mv.disp);}}
 
   // YEARLY
   {const ws=wb.getWorksheet('YEARLY');if(ws){
@@ -688,41 +690,120 @@ document.getElementById('backupBtn').addEventListener('click',backupJSON);
 document.getElementById('restoreBtn').addEventListener('click',()=>document.getElementById('restoreFile').click());
 document.getElementById('restoreFile').addEventListener('change',e=>{if(e.target.files[0])restoreJSON(e.target.files[0]);e.target.value='';});
 document.getElementById('genBtn').addEventListener('click',()=>{cachedWB=null;renderPreview();toast('Generated — opening pichle month closing se');});
-// ===== Import statement(s) from Excel / ODS / xls / csv / Word into CURRENT month as overrides =====
+// ===== Smart multi-statement import (Excel/ODS/CSV/Word/ODT) — heading se auto-identify =====
 const _libs={};
 function loadScript(url){ if(_libs[url])return _libs[url]; _libs[url]=new Promise((res,rej)=>{const s=document.createElement('script');s.src=url;s.onload=()=>res();s.onerror=()=>rej(new Error('Library load failed (net?) : '+url));document.head.appendChild(s);}); return _libs[url]; }
+
+// distinctive heading keywords -> statement (sheet) name
+const HEADKEYS={
+ 'pendency arrears':['pendency/arrears','pendency / arrears','arrears for the month'],
+ 'INFROMATION ':['information regarding civil and criminal'],
+ 'NI act breakup':['n.i. act','n.i act','negotiable instrument','138 n.i'],
+ 'breakup':['nature-wise pendency','nature wise pendency','trial by court of magistrate'],
+ 'contested non contested breakup':['non contested','non-contested','contested','institution disposal and pendency','criminal case pendency, institution and disposal'],
+ 'ACTUAL DISPO':['14603'],
+ 'Apar-DJ':['number of old cases','annexure – i','annexure - i'],
+ 'monthly rape mp mla':['mps/mlas','mlas','status of the cases'],
+ 'NDPS':['ndps'],
+ 'PETTY AND NI ACT':['3547'],
+ 'S3':[],
+ 'MOTHLY PETTY ACD':['non petty offence','petty/ non petty',"performa 'a'",'pendency of petty'],
+ 'monthly third':['monthly statement regarding civil and criminal cases pending'],
+ 'monthly first':['proforma-1','proforma -1'],
+ 'montly second':['age-wise breakup','age wise breakup'],
+ 'mission mode bimontlhly':['different type of cases'],
+ 'QUOTA':['out-turn','out turn','work-done'],
+ 'quarter SH':['sexual harass','harasshment','rape cases of woman'],
+ 'quarterly inst dispo':['during the quarter ending','brought forward from the previous quarter'],
+ '299 crpc':['absconding'],
+ '7 yearl old':['seven years old'],
+ 'new quarterly':['name of the state','jurisdiction of high court'],
+ 'ni quarterly':['disposal of old cases'],
+ 'half yearly 1':['statement no. 03','statement no.03','statement no. 3'],
+ 'half yearly 2 ':['statement no. 07','statement no.07','statement no. 7'],
+ 'YEARLY':['instituted and disposed in the year','annexure iv','in the year 20']
+};
+function matchHeading(blob){
+  const b=(blob||'').toLowerCase();
+  let best=null,bestScore=0;
+  Object.keys(HEADKEYS).forEach(name=>{
+    let sc=0;HEADKEYS[name].forEach(k=>{if(k&&b.indexOf(k)>=0)sc+=k.length;});
+    if(sc>bestScore){bestScore=sc;best=name;}
+  });
+  return bestScore>0?best:null;
+}
+// also try exact sheet-name match
+function matchSheetName(nm){const k=(nm||'').trim().toLowerCase();const i=SHEETS.map(s=>s.trim().toLowerCase()).indexOf(k);return i>=0?SHEETS[i]:null;}
+
 function mapGridToOverrides(grid,target){ if(!OV[target])OV[target]={}; let n=0;
-  grid.forEach((line,i)=>line.forEach((txt,j)=>{ const t=String(txt==null?'':txt).replace(/,/g,'').trim(); if(t!==''&&!isNaN(Number(t))){ OV[target][colL(j+1)+(i+1)]=Number(t); n++; } }));
+  grid.forEach((line,i)=>line.forEach((txt,j)=>{ const t=String(txt==null?'':txt).replace(/,/g,'').trim(); if(t!==''&&/^-?\d+(\.\d+)?$/.test(t)){ OV[target][colL(j+1)+(i+1)]=Number(t); n++; } }));
   return n; }
+function gridText(grid,rows){let s='';for(let i=0;i<Math.min(rows,grid.length);i++)s+=' '+grid[i].join(' ');return s;}
+
+function gridFromHtmlTable(tbl){const g=[];[...tbl.rows].forEach(tr=>{const line=[];[...tr.cells].forEach(td=>{const cs=td.colSpan||1;const txt=(td.textContent||'').replace(/\s+/g,' ').trim();for(let k=0;k<cs;k++)line.push(txt);});g.push(line);});return g;}
+function odtAttr(el,name){return (el.getAttribute&&(el.getAttribute('table:'+name)||el.getAttribute(name)))||'';}
+function byLocal(root,local){const out=[];(function rec(n){for(let i=0;i<n.childNodes.length;i++){const c=n.childNodes[i];if(c.nodeType===1){if(c.localName===local)out.push(c);rec(c);}}})(root);return out;}
+function gridFromOdtTable(tbl){const g=[];
+  byLocal(tbl,'table-row').forEach(row=>{let rrep=parseInt(odtAttr(row,'number-rows-repeated')||'1')||1;if(rrep>1000)rrep=1;
+    for(let q=0;q<rrep;q++){const line=[];
+      for(let i=0;i<row.childNodes.length;i++){const c=row.childNodes[i];if(c.nodeType!==1)continue;if(c.localName!=='table-cell'&&c.localName!=='covered-table-cell')continue;
+        let crep=parseInt(odtAttr(c,'number-columns-repeated')||'1')||1;if(crep>1000)crep=1;
+        const txt=(c.textContent||'').replace(/\s+/g,' ').trim();for(let k=0;k<crep;k++)line.push(txt);}
+      g.push(line);}});
+  return g;}
+
+// walk document (html or odt) into ordered head/table items
+function walkBody(root,items,isHtml){
+  const kids=root.childNodes;
+  for(let i=0;i<kids.length;i++){const c=kids[i];if(c.nodeType!==1)continue;
+    const ln=isHtml?c.tagName.toLowerCase():c.localName;
+    if(ln==='table'){items.push({type:'table',el:c});}
+    else if(ln==='p'||ln==='h'||/^h[1-6]$/.test(ln)){const t=(c.textContent||'').replace(/\s+/g,' ').trim();if(t)items.push({type:'head',text:t});}
+    else walkBody(c,items,isHtml);
+  }
+}
+function processItems(items,gridFn,report){
+  let buf=[];
+  items.forEach(it=>{
+    if(it.type==='head'){buf.push(it.text);return;}
+    const grid=gridFn(it.el);
+    const blob=buf.join(' ')+' '+gridText(grid,3);
+    buf=[];
+    const target=matchHeading(blob);
+    if(target){const n=mapGridToOverrides(grid,target);if(n)report.ok.push({name:target.trim(),n:n});else report.fail.push((blob.trim().slice(0,40)||'table')+' (no numbers)');}
+    else report.fail.push('“'+(blob.trim().slice(0,45)||'table')+'…” (pehchaan nahi)');
+  });
+}
+
 async function importFile(file){
   const fname=(file.name||'').toLowerCase();
+  const report={ok:[],fail:[]};
   try{
     const buf=await file.arrayBuffer();
     if(/\.(xlsx|xls|ods|csv)$/.test(fname)){
       toast('Reading spreadsheet…');
       await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
       const wb=XLSX.read(new Uint8Array(buf),{type:'array'});
-      const known=SHEETS.map(s=>s.trim().toLowerCase());
-      let imported=0,done=[],matched=false;
-      const impSheet=(ws,target)=>{const ref=ws['!ref'];if(!ref)return;const rg=XLSX.utils.decode_range(ref);if(!OV[target])OV[target]={};let n=0;
+      const impSheet=(ws,target)=>{const ref=ws['!ref'];if(!ref)return 0;const rg=XLSX.utils.decode_range(ref);if(!OV[target])OV[target]={};let n=0;
         for(let r=rg.s.r;r<=rg.e.r;r++)for(let c=rg.s.c;c<=rg.e.c;c++){const addr=XLSX.utils.encode_cell({r:r,c:c});const cell=ws[addr];if(cell&&typeof cell.v==='number'){OV[target][addr]=cell.v;n++;}}
-        if(n){imported+=n;done.push(target.trim()+' ('+n+')');}};
-      wb.SheetNames.forEach(sn=>{const idx=known.indexOf(sn.trim().toLowerCase());if(idx>=0){matched=true;impSheet(wb.Sheets[sn],SHEETS[idx]);}});
-      if(!matched)impSheet(wb.Sheets[wb.SheetNames[0]],stmtSel.value);
-      saveOV(CURMONTH,OV);cachedWB=null;renderPreview();refreshMeta();
-      toast(imported?('Imported '+imported+' values → '+done.join(', ')+' ('+CURMONTH+')'):'Koi numeric value nahi mili',!imported);
+        return n;};
+      const headText=(ws)=>{const ref=ws['!ref'];if(!ref)return '';const rg=XLSX.utils.decode_range(ref);let s='';for(let r=rg.s.r;r<=Math.min(rg.s.r+7,rg.e.r);r++)for(let c=rg.s.c;c<=rg.e.c;c++){const cell=ws[XLSX.utils.encode_cell({r,c})];if(cell&&typeof cell.v==='string')s+=' '+cell.v;}return s;};
+      wb.SheetNames.forEach(sn=>{const ws=wb.Sheets[sn];
+        let target=matchSheetName(sn)||matchHeading(headText(ws));
+        if(!target){ // single-sheet file fallback -> selected statement
+          if(wb.SheetNames.length===1){target=stmtSel.value;}
+        }
+        if(target){const n=impSheet(ws,target);if(n)report.ok.push({name:target.trim(),n:n});else report.fail.push(sn+' (no numbers)');}
+        else report.fail.push(sn+' (pehchaan nahi)');
+      });
     } else if(/\.docx$/.test(fname)){
       toast('Reading Word…');
       await loadScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js');
       const res=await mammoth.convertToHtml({arrayBuffer:buf});
       const doc=new DOMParser().parseFromString(res.value,'text/html');
-      const tables=[...doc.querySelectorAll('table')];
-      if(!tables.length){toast('Word file mein koi table nahi mili',true);return;}
-      tables.sort((a,b)=>b.querySelectorAll('td,th').length-a.querySelectorAll('td,th').length);
-      const tbl=tables[0],target=stmtSel.value;if(!OV[target])OV[target]={};let n=0;
-      [...tbl.querySelectorAll('tr')].forEach((tr,i)=>{[...tr.children].forEach((td,j)=>{const txt=(td.textContent||'').replace(/,/g,'').trim();if(txt!==''&&!isNaN(Number(txt))){OV[target][colL(j+1)+(i+1)]=Number(txt);n++;}});});
-      saveOV(CURMONTH,OV);cachedWB=null;renderPreview();refreshMeta();
-      toast(n?('Word import: '+n+' values → '+target.trim()+' (positions approx — orange cells verify karein)'):'Table mein number nahi mile',!n);
+      const items=[];walkBody(doc.body,items,true);
+      if(!items.some(i=>i.type==='table')){toast('Word mein koi table nahi mili',true);return;}
+      processItems(items,gridFromHtmlTable,report);
     } else if(/\.odt$/.test(fname)){
       toast('Reading OpenDocument Text…');
       await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
@@ -730,26 +811,23 @@ async function importFile(file){
       const f=zip.file('content.xml'); if(!f){toast('ODT content.xml nahi mila',true);return;}
       const xml=await f.async('string');
       const doc=new DOMParser().parseFromString(xml,'application/xml');
-      const tables=[...doc.getElementsByTagName('table:table')];
-      if(!tables.length){toast('ODT mein koi table nahi mili',true);return;}
-      let best=null,bestN=-1;tables.forEach(tb=>{const n=tb.getElementsByTagName('table:table-cell').length;if(n>bestN){bestN=n;best=tb;}});
-      const grid=[];
-      [...best.getElementsByTagName('table:table-row')].forEach(row=>{
-        let rrep=parseInt(row.getAttribute('table:number-rows-repeated')||'1')||1; if(rrep>1000)rrep=1;
-        for(let q=0;q<rrep;q++){const line=[];
-          [...row.children].forEach(c=>{ if(c.nodeName!=='table:table-cell'&&c.nodeName!=='table:covered-table-cell')return;
-            let crep=parseInt(c.getAttribute('table:number-columns-repeated')||'1')||1; if(crep>1000)crep=1;
-            const txt=(c.textContent||'').replace(/\s+/g,' ').trim();
-            for(let k=0;k<crep;k++)line.push(txt);});
-          grid.push(line);}
-      });
-      const n=mapGridToOverrides(grid,stmtSel.value);
-      saveOV(CURMONTH,OV);cachedWB=null;renderPreview();refreshMeta();
-      toast(n?('ODT import: '+n+' values → '+stmtSel.value.trim()+' (positions approx — orange cells verify karein)'):'Table mein number nahi mile',!n);
+      const body=byLocal(doc.documentElement,'text')[0]||doc.documentElement;
+      const items=[];walkBody(body,items,false);
+      if(!items.some(i=>i.type==='table')){toast('ODT mein koi table nahi mili',true);return;}
+      processItems(items,gridFromOdtTable,report);
     } else if(/\.doc$/.test(fname)){
-      toast('.doc (Word 97-2003) browser mein safely nahi padha ja sakta. LibreOffice mein kholein → File → Save As → .docx ya .ods → phir upload karein.',true);
-    } else { toast('Format support nahi: .xlsx / .xls / .ods / .csv / .docx / .odt',true); }
+      toast('.doc (Word 97-2003) browser mein safely nahi padha ja sakta. LibreOffice → Save As → .docx ya .ods → phir upload.',true);return;
+    } else { toast('Format support nahi: .xlsx / .xls / .ods / .csv / .docx / .odt',true);return; }
+    saveOV(CURMONTH,OV);cachedWB=null;renderPreview();refreshMeta();
+    showImportReport(report);
   }catch(e){console.error(e);toast('Import error: '+e.message,true);}
+}
+function showImportReport(report){
+  const box=document.getElementById('importReport');
+  const okT=report.ok.length?('<b style="color:#4ade80">✅ Mile ('+report.ok.length+'):</b> '+report.ok.map(o=>o.name+' ['+o.n+']').join(', ')):'';
+  const failT=report.fail.length?('<b style="color:#fca5a5">⚠️ Pehchaan nahi / issue ('+report.fail.length+'):</b> '+report.fail.join(' • ')+' — ye manually import karein (statement select karke single page upload)'):'';
+  if(box){box.style.display='block';box.innerHTML='<div style="margin-bottom:4px">Import ('+CURMONTH+'):</div>'+okT+(okT&&failT?'<br>':'')+failT;}
+  toast((report.ok.length?('Imported '+report.ok.length+' statement(s)'):'Koi statement identify nahi hua')+(report.fail.length?(' · '+report.fail.length+' flagged'):''), report.ok.length===0);
 }
 document.getElementById('carryInfoBtn').addEventListener('click',()=>{cachedWB=null;renderPreview();const pm=prevMonthStr(CURMONTH);toast(monthHasData(pm)?('Opening = '+pm+' ki closing'):('Pehla month — yahan closing bharo (baseline)'));});
 document.getElementById('importBtn').addEventListener('click',()=>document.getElementById('importFile').click());
